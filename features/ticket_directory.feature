@@ -8,42 +8,42 @@ Feature: Ticket Directory Resolution
 
   Scenario: Find tickets in current directory
     Given a ticket exists with ID "test-0001" and title "Test ticket"
-    When I run "ticket ls"
+    When I run "tikket ls"
     Then the command should succeed
     And the output should contain "test-0001"
 
   Scenario: Find tickets in parent directory
     Given a ticket exists with ID "test-0001" and title "Test ticket"
     And I am in subdirectory "src/components"
-    When I run "ticket ls"
+    When I run "tikket ls"
     Then the command should succeed
     And the output should contain "test-0001"
 
   Scenario: Find tickets in grandparent directory
     Given a ticket exists with ID "test-0001" and title "Test ticket"
     And I am in subdirectory "src/components/ui"
-    When I run "ticket ls"
+    When I run "tikket ls"
     Then the command should succeed
     And the output should contain "test-0001"
 
   Scenario: Create ticket initializes in current directory when no parent has tickets
     Given the tickets directory does not exist
     And I am in subdirectory "new-project"
-    When I run "ticket create 'First ticket'"
+    When I run "tikket create 'First ticket'"
     Then the command should succeed
     And the output should match a ticket ID pattern
     And tickets directory should exist in current subdirectory
 
   Scenario: Error when no tickets directory for read command
     Given the tickets directory does not exist
-    When I run "ticket show nonexistent"
+    When I run "tikket show nonexistent"
     Then the command should fail
     And the output should contain "no .tickets directory found"
 
   Scenario: Error when no tickets directory in any parent
     Given the tickets directory does not exist
     And I am in subdirectory "orphan/deep/path"
-    When I run "ticket ready"
+    When I run "tikket ready"
     Then the command should fail
     And the output should contain "no .tickets directory found"
 
@@ -51,7 +51,7 @@ Feature: Ticket Directory Resolution
     Given a ticket exists with ID "parent-0001" and title "Parent ticket"
     And a separate tickets directory exists at "other-tickets" with ticket "other-0001" titled "Other ticket"
     And I am in subdirectory "src"
-    When I run "ticket ls" with TICKETS_DIR set to "other-tickets"
+    When I run "tikket ls" with TICKETS_DIR set to "other-tickets"
     Then the command should succeed
     And the output should contain "other-0001"
     And the output should not contain "parent-0001"
@@ -59,7 +59,7 @@ Feature: Ticket Directory Resolution
   Scenario: Show command works from subdirectory
     Given a ticket exists with ID "test-0001" and title "Test ticket"
     And I am in subdirectory "src"
-    When I run "ticket show test-0001"
+    When I run "tikket show test-0001"
     Then the command should succeed
     And the output should contain "id: test-0001"
 
@@ -67,12 +67,12 @@ Feature: Ticket Directory Resolution
     Given a ticket exists with ID "task-0001" and title "Main task"
     And a ticket exists with ID "task-0002" and title "Dependency"
     And I am in subdirectory "lib"
-    When I run "ticket dep task-0001 task-0002"
+    When I run "tikket dep task-0001 task-0002"
     Then the command should succeed
     And the output should contain "Added dependency"
 
   Scenario: Help command works without tickets directory
     Given the tickets directory does not exist
-    When I run "ticket help"
+    When I run "tikket help"
     Then the command should succeed
     And the output should contain "minimal ticket system"

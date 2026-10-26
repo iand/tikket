@@ -6,7 +6,7 @@ See @README.md for usage documentation. Run `tk help` for command reference. Alw
 
 ## Architecture
 
-**Core script:** Single-file bash implementation (`ticket`, ~1850 lines). Uses awk for performant bulk operations on large ticket sets.
+**Core script:** Single-file bash implementation (`tikket`, ~1850 lines, installed as `tk`). Uses awk for performant bulk operations on large ticket sets.
 
 Key functions:
 - `generate_prefix()` / `generate_id()` - Creates IDs from directory name prefix + random suffix

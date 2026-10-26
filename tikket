@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ticket - minimal ticket system with dependency tracking
+# tikket - minimal ticket system with dependency tracking
 # Stores markdown files with YAML frontmatter in .tickets/
 
 # Find .tickets directory by walking parent directories
@@ -708,7 +708,7 @@ cmd_dep_tree() {
     done
 
     if [[ -z "$root_id" ]]; then
-        echo "Usage: ticket dep tree [--full] <id>" >&2
+        echo "Usage: $(basename "$0") dep tree [--full] <id>" >&2
         return 1
     fi
 
@@ -1021,7 +1021,7 @@ cmd_dep() {
     fi
 
     if [[ $# -lt 2 ]]; then
-        echo "Usage: ticket dep <id> <dependency-id>" >&2
+        echo "Usage: $(basename "$0") dep <id> <dependency-id>" >&2
         echo "       ticket dep tree <id>  - show dependency tree" >&2
         echo "       ticket dep cycle      - find dependency cycles" >&2
         return 1
@@ -1465,7 +1465,7 @@ cmd_blocked() {
 
 cmd_undep() {
     if [[ $# -lt 2 ]]; then
-        echo "Usage: ticket undep <id> <dependency-id>" >&2
+        echo "Usage: $(basename "$0") undep <id> <dependency-id>" >&2
         return 1
     fi
 
@@ -1496,7 +1496,7 @@ cmd_undep() {
 
 cmd_link() {
     if [[ $# -lt 2 ]]; then
-        echo "Usage: ticket link <id> <id> [id...]" >&2
+        echo "Usage: $(basename "$0") link <id> <id> [id...]" >&2
         return 1
     fi
 
@@ -1575,7 +1575,7 @@ cmd_link() {
 
 cmd_unlink() {
     if [[ $# -lt 2 ]]; then
-        echo "Usage: ticket unlink <id> <target-id>" >&2
+        echo "Usage: $(basename "$0") unlink <id> <target-id>" >&2
         return 1
     fi
 
@@ -1611,7 +1611,7 @@ cmd_unlink() {
 
 cmd_show() {
     if [[ $# -lt 1 ]]; then
-        echo "Usage: ticket show <id>" >&2
+        echo "Usage: $(basename "$0") show <id>" >&2
         return 1
     fi
 
@@ -1756,7 +1756,7 @@ cmd_show() {
 
 cmd_add_note() {
     if [[ $# -lt 1 ]]; then
-        echo "Usage: ticket add-note <id> [-a author] [note text]" >&2
+        echo "Usage: $(basename "$0") add-note <id> [-a author] [note text]" >&2
         return 1
     fi
 
@@ -1768,7 +1768,7 @@ cmd_add_note() {
     author=$(current_user)
     if [[ "${1:-}" == "-a" || "${1:-}" == "--author" ]]; then
         if [[ $# -lt 2 ]]; then
-            echo "Usage: ticket add-note <id> [-a author] [note text]" >&2
+            echo "Usage: $(basename "$0") add-note <id> [-a author] [note text]" >&2
             return 1
         fi
         author="$2"

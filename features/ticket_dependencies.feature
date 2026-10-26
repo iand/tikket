@@ -10,26 +10,26 @@ Feature: Ticket Dependencies
     And a ticket exists with ID "task-0003" and title "Another task"
 
   Scenario: Add a dependency
-    When I run "ticket dep task-0001 task-0002"
+    When I run "tikket dep task-0001 task-0002"
     Then the command should succeed
     And the output should be "Added dependency: task-0001 -> task-0002"
     And ticket "task-0001" should have "task-0002" in deps
 
   Scenario: Add dependency is idempotent
     Given ticket "task-0001" depends on "task-0002"
-    When I run "ticket dep task-0001 task-0002"
+    When I run "tikket dep task-0001 task-0002"
     Then the command should succeed
     And the output should be "Dependency already exists"
 
   Scenario: Remove a dependency
     Given ticket "task-0001" depends on "task-0002"
-    When I run "ticket undep task-0001 task-0002"
+    When I run "tikket undep task-0001 task-0002"
     Then the command should succeed
     And the output should be "Removed dependency: task-0001 -/-> task-0002"
     And ticket "task-0001" should not have "task-0002" in deps
 
   Scenario: Remove non-existent dependency
-    When I run "ticket undep task-0001 task-0002"
+    When I run "tikket undep task-0001 task-0002"
     Then the command should fail
     And the output should be "Dependency not found"
 
@@ -37,7 +37,7 @@ Feature: Ticket Dependencies
     Given a ticket exists with ID "dt-fix" and title "Fix"
     And a ticket exists with ID "dt-fix-login" and title "Fix login"
     And ticket "task-0001" depends on "dt-fix-login"
-    When I run "ticket dep task-0001 dt-fix"
+    When I run "tikket dep task-0001 dt-fix"
     Then the command should succeed
     And the output should be "Added dependency: task-0001 -> dt-fix"
     And ticket "task-0001" should have field "deps" with value "[dt-fix-login, dt-fix]"
@@ -47,7 +47,7 @@ Feature: Ticket Dependencies
     And a ticket exists with ID "dt-fix-login" and title "Fix login"
     And ticket "task-0001" depends on "dt-fix"
     And ticket "task-0001" depends on "dt-fix-login"
-    When I run "ticket undep task-0001 dt-fix"
+    When I run "tikket undep task-0001 dt-fix"
     Then the command should succeed
     And ticket "task-0001" should have field "deps" with value "[dt-fix-login]"
 
@@ -55,7 +55,7 @@ Feature: Ticket Dependencies
     Given a ticket exists with ID "dt-fix" and title "Fix"
     And a ticket exists with ID "dt-fix-login" and title "Fix login"
     And ticket "task-0001" depends on "dt-fix-login"
-    When I run "ticket undep task-0001 dt-fix"
+    When I run "tikket undep task-0001 dt-fix"
     Then the command should fail
     And the output should be "Dependency not found"
     And ticket "task-0001" should have field "deps" with value "[dt-fix-login]"
@@ -64,25 +64,25 @@ Feature: Ticket Dependencies
     Given a ticket exists with ID "dt-fix" and title "Fix"
     And a ticket exists with ID "dt-fix-login" and title "Fix login"
     And ticket "dt-fix" depends on "task-0002"
-    When I run "ticket dep tree dt-fix"
+    When I run "tikket dep tree dt-fix"
     Then the command should succeed
     And the output line 1 should contain "dt-fix [open] Fix"
     And the output should contain "task-0002"
 
   Scenario: Add dependency with non-existent ticket
-    When I run "ticket dep task-0001 nonexistent"
+    When I run "tikket dep task-0001 nonexistent"
     Then the command should fail
     And the output should contain "Error: ticket 'nonexistent' not found"
 
   Scenario: Add dependency to non-existent ticket
-    When I run "ticket dep nonexistent task-0001"
+    When I run "tikket dep nonexistent task-0001"
     Then the command should fail
     And the output should contain "Error: ticket 'nonexistent' not found"
 
   Scenario: View dependency tree
     Given ticket "task-0001" depends on "task-0002"
     And ticket "task-0002" depends on "task-0003"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the output should contain "task-0001"
     And the output should contain "task-0002"
@@ -90,7 +90,7 @@ Feature: Ticket Dependencies
 
   Scenario: Dependency tree shows status and title
     Given ticket "task-0001" depends on "task-0002"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the output should contain "[open]"
     And the output should contain "Main task"
@@ -98,14 +98,14 @@ Feature: Ticket Dependencies
 
   Scenario: Dependency tree uses box-drawing characters
     Given ticket "task-0001" depends on "task-0002"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the output should match box-drawing tree format
 
   Scenario: Dependency tree with multiple children
     Given ticket "task-0001" depends on "task-0002"
     And ticket "task-0001" depends on "task-0003"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the output should contain "task-0002"
     And the output should contain "task-0003"
@@ -113,7 +113,7 @@ Feature: Ticket Dependencies
   Scenario: Dependency tree handles cycles gracefully
     Given ticket "task-0001" depends on "task-0002"
     And ticket "task-0002" depends on "task-0001"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the output should contain "task-0001"
     And the output should contain "task-0002"
@@ -122,7 +122,7 @@ Feature: Ticket Dependencies
     Given ticket "task-0001" depends on "task-0002"
     And ticket "task-0001" depends on "task-0003"
     And ticket "task-0002" depends on "task-0003"
-    When I run "ticket dep tree --full task-0001"
+    When I run "tikket dep tree --full task-0001"
     Then the command should succeed
 
   Scenario: Dependency tree children sorted by subtree depth then ID
@@ -135,7 +135,7 @@ Feature: Ticket Dependencies
     And ticket "task-0001" depends on "task-0003"
     And ticket "task-0001" depends on "task-0004"
     And ticket "task-0004" depends on "task-0005"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the dep tree output should have task-0002 before task-0003
     And the dep tree output should have task-0003 before task-0004
@@ -151,7 +151,7 @@ Feature: Ticket Dependencies
     And ticket "task-0001" depends on "task-0002"
     And ticket "task-0001" depends on "task-0004"
     And ticket "task-0001" depends on "task-0003"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the dep tree output should have task-0002 before task-0003
     And the dep tree output should have task-0003 before task-0004
@@ -172,7 +172,7 @@ Feature: Ticket Dependencies
     And ticket "task-0001" depends on "task-0015"
     And ticket "task-0020" depends on "task-0025"
     And ticket "task-0015" depends on "task-0025"
-    When I run "ticket dep tree task-0001"
+    When I run "tikket dep tree task-0001"
     Then the command should succeed
     And the dep tree output should have task-0005 before task-0008
     And the dep tree output should have task-0008 before task-0010
@@ -181,14 +181,14 @@ Feature: Ticket Dependencies
     And the dep tree output should have task-0015 before task-0020
 
   Scenario: Dependency on itself is refused
-    When I run "ticket dep task-0001 task-0001"
+    When I run "tikket dep task-0001 task-0001"
     Then the command should fail
     And the output should contain "cannot depend on itself"
     And ticket "task-0001" should have field "deps" with value "[]"
 
   Scenario: Direct dependency cycle is refused
     Given ticket "task-0002" depends on "task-0001"
-    When I run "ticket dep task-0001 task-0002"
+    When I run "tikket dep task-0001 task-0002"
     Then the command should fail
     And the output should contain "dependency would create a cycle: task-0001 -> task-0002 -> task-0001"
     And ticket "task-0001" should have field "deps" with value "[]"
@@ -196,20 +196,20 @@ Feature: Ticket Dependencies
   Scenario: Indirect dependency cycle is refused
     Given ticket "task-0002" depends on "task-0003"
     And ticket "task-0003" depends on "task-0001"
-    When I run "ticket dep task-0001 task-0002"
+    When I run "tikket dep task-0001 task-0002"
     Then the command should fail
     And the output should contain "task-0001 -> task-0002 -> task-0003 -> task-0001"
 
   Scenario: Cycle through a closed ticket is refused
     Given ticket "task-0002" depends on "task-0001"
     And ticket "task-0002" has status "closed"
-    When I run "ticket dep task-0001 task-0002"
+    When I run "tikket dep task-0001 task-0002"
     Then the command should fail
     And the output should contain "dependency would create a cycle"
 
   Scenario: Diamond dependencies are allowed
     Given ticket "task-0001" depends on "task-0002"
     And ticket "task-0002" depends on "task-0003"
-    When I run "ticket dep task-0001 task-0003"
+    When I run "tikket dep task-0001 task-0003"
     Then the command should succeed
     And ticket "task-0001" should have "task-0003" in deps

@@ -18,11 +18,11 @@ use_step_matcher("re")
 # ============================================================================
 
 def get_ticket_script(context):
-    """Get the ticket script path, defaulting to ./ticket or using TICKET_SCRIPT env var."""
-    ticket_script = os.environ.get('TICKET_SCRIPT')
+    """Get the tikket script path, defaulting to ./tikket or using TIKKET_SCRIPT env var."""
+    ticket_script = os.environ.get('TIKKET_SCRIPT')
     if ticket_script:
         return ticket_script
-    return str(Path(context.project_dir) / 'ticket')
+    return str(Path(context.project_dir) / 'tikket')
 
 
 def create_ticket(context, ticket_id, title, priority=2, parent=None):
@@ -236,7 +236,7 @@ Description
 def step_run_command_no_stdin(context, command):
     """Run a command with stdin closed."""
     ticket_script = get_ticket_script(context)
-    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
+    cmd = command.replace('tikket ', f'{ticket_script} ', 1)
 
     result = subprocess.run(
         cmd,
@@ -258,7 +258,7 @@ def step_run_command_with_env(context, command, tickets_dir):
     """Run a ticket CLI command with custom TICKETS_DIR."""
     command = command.replace('\\"', '"')
     ticket_script = get_ticket_script(context)
-    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
+    cmd = command.replace('tikket ', f'{ticket_script} ', 1)
 
     # Use working_dir if set (from subdirectory step), otherwise test_dir
     cwd = getattr(context, 'working_dir', context.test_dir)
@@ -289,7 +289,7 @@ def step_run_command_as(context, command, assignee):
     """Run a ticket CLI command with TK_ASSIGNEE set."""
     command = command.replace('\\"', '"')
     ticket_script = get_ticket_script(context)
-    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
+    cmd = command.replace('tikket ', f'{ticket_script} ', 1)
 
     cwd = getattr(context, 'working_dir', context.test_dir)
 
@@ -312,7 +312,7 @@ def step_run_command_as(context, command, assignee):
     context.returncode = result.returncode
     context.last_command = command
 
-    if 'ticket create' in command and result.returncode == 0:
+    if 'tikket create' in command and result.returncode == 0:
         context.last_created_id = result.stdout.strip()
 
 
@@ -323,7 +323,7 @@ def step_run_command(context, command):
     command = command.replace('\\"', '"')
 
     ticket_script = get_ticket_script(context)
-    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
+    cmd = command.replace('tikket ', f'{ticket_script} ', 1)
 
     # Use working_dir if set (from subdirectory step), otherwise test_dir
     cwd = getattr(context, 'working_dir', context.test_dir)
@@ -344,7 +344,7 @@ def step_run_command(context, command):
     context.last_command = command
 
     # If this was a create command, track the created ticket ID
-    if 'ticket create' in command and result.returncode == 0:
+    if 'tikket create' in command and result.returncode == 0:
         context.last_created_id = result.stdout.strip()
 
 

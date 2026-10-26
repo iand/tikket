@@ -1,13 +1,16 @@
-# ticket
+# tikket
 
 The git-backed issue tracker for AI agents. Rooted in the Unix Philosophy, `tk` is inspired by Joe
 Armstrong's [Minimal Viable Program](https://joearms.github.io/published/2014-06-25-minimal-viable-program.html)
 with additional quality of life features for managing and querying against complex issue
 dependency graphs.
 
-This is a trimmed fork of [wedow/ticket](https://github.com/wedow/ticket). It keeps only the
-commands for managing tickets: the plugin system, the `edit`, `query` and `migrate-beads` plugins,
-and the Homebrew/AUR packaging have been removed.
+`tikket` started as a fork of [wedow/ticket](https://github.com/wedow/ticket) and has since
+diverged. It keeps only the commands for managing tickets (the plugin system, the `edit`, `query`
+and `migrate-beads` plugins, and the Homebrew/AUR packaging are gone) and adds commands for agent
+workflows: `check`, `set`, `next`, `claim` and close resolutions. The ticket file format and the
+`.tickets/` directory are unchanged, so existing tickets work as they are. The command is still
+installed as `tk`.
 
 `tk` was written as a full replacement for [beads](https://github.com/steveyegge/beads). It shares
 many similar commands but without the need for keeping a SQLite file in sync or a rogue background
@@ -42,11 +45,11 @@ exists.
 
 **From source (auto-updates on git pull):**
 ```bash
-git clone https://github.com/iand/ticket.git
-cd ticket && ln -s "$PWD/ticket" ~/.local/bin/tk
+git clone https://github.com/iand/tikket.git
+cd tikket && ln -s "$PWD/tikket" ~/.local/bin/tk
 ```
 
-**Or** just copy `ticket` to somewhere in your PATH.
+**Or** just copy `tikket` to somewhere in your PATH, named `tk`.
 
 ## Requirements
 

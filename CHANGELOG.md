@@ -4,6 +4,10 @@
 
 Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 0.3.2.
 
+### Renamed
+- Project renamed to `tikket`; the script is now `tikket`. The `tk` command name, `.tickets/`
+  directory, ticket file format and `TICKETS_DIR` variable are unchanged.
+
 ### Added
 - `-s, --slug` flag for `create` to use a meaningful ID suffix instead of a random one
 - `create` refuses to overwrite an existing ticket ID

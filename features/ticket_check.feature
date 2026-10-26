@@ -11,19 +11,19 @@ Feature: Ticket Check
     And a ticket exists with ID "chk-0002" and title "Second" with parent "chk-0001"
     And ticket "chk-0002" depends on "chk-0001"
     And ticket "chk-0001" is linked to "chk-0002"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should succeed
     And the output should be "No problems found"
 
   Scenario: Empty tickets directory passes
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should succeed
     And the output should be "No problems found"
 
   Scenario: Missing dependency is reported
     Given a ticket exists with ID "chk-0001" and title "First"
     And ticket "chk-0001" depends on "ghost-01"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: dependency ghost-01 does not exist"
     And the output should contain "1 problem(s) found"
@@ -31,7 +31,7 @@ Feature: Ticket Check
   Scenario: Missing parent and link are reported
     Given a ticket exists with ID "chk-0001" and title "First" with parent "ghost-01"
     And ticket "chk-0001" has field "links" with value "[ghost-02]"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: parent ghost-01 does not exist"
     And the output should contain "chk-0001: link ghost-02 does not exist"
@@ -40,14 +40,14 @@ Feature: Ticket Check
     Given a ticket exists with ID "chk-0001" and title "First"
     And a ticket exists with ID "chk-0002" and title "Second"
     And ticket "chk-0001" has field "links" with value "[chk-0002]"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: link to chk-0002 is not reciprocated"
 
   Scenario: Self references are reported
     Given a ticket exists with ID "chk-0001" and title "First" with parent "chk-0001"
     And ticket "chk-0001" has field "deps" with value "[chk-0001]"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: depends on itself"
     And the output should contain "chk-0001: is its own parent"
@@ -55,7 +55,7 @@ Feature: Ticket Check
   Scenario: Parent cycle is reported
     Given a ticket exists with ID "chk-0001" and title "First" with parent "chk-0002"
     And a ticket exists with ID "chk-0002" and title "Second" with parent "chk-0001"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: parent chain forms a cycle"
 
@@ -64,7 +64,7 @@ Feature: Ticket Check
     And ticket "chk-0001" has field "status" with value "done"
     And ticket "chk-0001" has field "type" with value "story"
     And ticket "chk-0001" has field "priority" with value "9"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: invalid status done"
     And the output should contain "chk-0001: invalid type story"
@@ -73,7 +73,7 @@ Feature: Ticket Check
   Scenario: Resolution on an open ticket is reported
     Given a ticket exists with ID "chk-0001" and title "First"
     And ticket "chk-0001" has field "resolution" with value "done"
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: resolution set on ticket that is not closed"
 
@@ -88,7 +88,7 @@ Feature: Ticket Check
       ---
       # Mismatched
       """
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: id field other-01 does not match filename"
 
@@ -103,13 +103,13 @@ Feature: Ticket Check
       id: chk-0002
       status: open
       """
-    When I run "ticket check"
+    When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: missing frontmatter"
     And the output should contain "chk-0002: unterminated frontmatter"
 
   Scenario: Closed tickets made by close pass check
     Given a ticket exists with ID "chk-0001" and title "First"
-    When I run "ticket close chk-0001 -r wontfix"
-    And I run "ticket check"
+    When I run "tikket close chk-0001 -r wontfix"
+    And I run "tikket check"
     Then the command should succeed

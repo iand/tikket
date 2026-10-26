@@ -8,7 +8,7 @@ from pathlib import Path
 
 def before_all(context):
     """Set up test environment before all tests."""
-    # Store the project directory (where the ticket script lives)
+    # Store the project directory (where the tikket script lives)
     context.project_dir = Path(__file__).parent.parent.resolve()
 
 

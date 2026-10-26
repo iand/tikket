@@ -33,6 +33,42 @@ Feature: Ticket Dependencies
     Then the command should fail
     And the output should be "Dependency not found"
 
+  Scenario: Add dependency whose ID is a substring of an existing dependency
+    Given a ticket exists with ID "dt-fix" and title "Fix"
+    And a ticket exists with ID "dt-fix-login" and title "Fix login"
+    And ticket "task-0001" depends on "dt-fix-login"
+    When I run "ticket dep task-0001 dt-fix"
+    Then the command should succeed
+    And the output should be "Added dependency: task-0001 -> dt-fix"
+    And ticket "task-0001" should have field "deps" with value "[dt-fix-login, dt-fix]"
+
+  Scenario: Remove dependency leaves dependencies that contain its ID
+    Given a ticket exists with ID "dt-fix" and title "Fix"
+    And a ticket exists with ID "dt-fix-login" and title "Fix login"
+    And ticket "task-0001" depends on "dt-fix"
+    And ticket "task-0001" depends on "dt-fix-login"
+    When I run "ticket undep task-0001 dt-fix"
+    Then the command should succeed
+    And ticket "task-0001" should have field "deps" with value "[dt-fix-login]"
+
+  Scenario: Remove dependency that only matches part of an existing ID
+    Given a ticket exists with ID "dt-fix" and title "Fix"
+    And a ticket exists with ID "dt-fix-login" and title "Fix login"
+    And ticket "task-0001" depends on "dt-fix-login"
+    When I run "ticket undep task-0001 dt-fix"
+    Then the command should fail
+    And the output should be "Dependency not found"
+    And ticket "task-0001" should have field "deps" with value "[dt-fix-login]"
+
+  Scenario: Dependency tree prefers exact ID over longer IDs containing it
+    Given a ticket exists with ID "dt-fix" and title "Fix"
+    And a ticket exists with ID "dt-fix-login" and title "Fix login"
+    And ticket "dt-fix" depends on "task-0002"
+    When I run "ticket dep tree dt-fix"
+    Then the command should succeed
+    And the output line 1 should contain "dt-fix [open] Fix"
+    And the output should contain "task-0002"
+
   Scenario: Add dependency with non-existent ticket
     When I run "ticket dep task-0001 nonexistent"
     Then the command should fail

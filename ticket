@@ -68,8 +68,8 @@ _sed_i() {
     sed "$@" "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
-# Generate ticket ID from directory name + random string
-generate_id() {
+# Generate ticket ID prefix from directory name
+generate_prefix() {
     local dir_name
     dir_name=$(basename "$(pwd)")
 
@@ -80,11 +80,60 @@ generate_id() {
     # Fallback to first 3 chars if single segment (prefix too short)
     [[ ${#prefix} -lt 2 ]] && prefix="${dir_name:0:3}"
 
+    echo "$prefix"
+}
+
+# Generate ticket ID from directory name + random string
+generate_id() {
     # 4-char random lower case alphanumeric string
     local hash
     hash=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 4)
 
-    echo "${prefix}-${hash}"
+    echo "$(generate_prefix)-${hash}"
+}
+
+# Validate a user-supplied slug: lowercase alphanumeric segments separated by single hyphens
+validate_slug() {
+    local slug="$1"
+    if [[ ! "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo "Error: invalid slug '$slug'. Use lowercase letters, digits and single hyphens (e.g. fix-login)" >&2
+        return 1
+    fi
+}
+
+# Check whether a YAML inline array (e.g. "[a, b]") contains an exact element
+array_contains() {
+    local array="$1"
+    local item="$2"
+    local elem
+    local -a elems
+    array="${array#[}"
+    array="${array%]}"
+    [[ -z "${array// /}" ]] && return 1
+    IFS=',' read -r -a elems <<< "$array"
+    for elem in "${elems[@]}"; do
+        read -r elem <<< "$elem"
+        [[ "$elem" == "$item" ]] && return 0
+    done
+    return 1
+}
+
+# Remove an exact element from a YAML inline array, printing the new array
+array_remove() {
+    local array="$1"
+    local item="$2"
+    local elem out=""
+    local -a elems
+    array="${array#[}"
+    array="${array%]}"
+    [[ -z "${array// /}" ]] && { echo "[]"; return 0; }
+    IFS=',' read -r -a elems <<< "$array"
+    for elem in "${elems[@]}"; do
+        read -r elem <<< "$elem"
+        [[ -z "$elem" || "$elem" == "$item" ]] && continue
+        out="${out:+$out, }$elem"
+    done
+    echo "[$out]"
 }
 
 # Ensure tickets directory exists
@@ -149,7 +198,7 @@ cmd_create() {
     ensure_dir
 
     local title="" description="" design="" acceptance=""
-    local priority=2 issue_type="task" assignee="" parent="" tags=""
+    local priority=2 issue_type="task" assignee="" parent="" tags="" slug=""
 
     # Default assignee to git user.name if available
     assignee=$(git config user.name 2>/dev/null || true)
@@ -165,6 +214,7 @@ cmd_create() {
             -a|--assignee) assignee="$2"; shift 2 ;;
             --parent) parent="$2"; shift 2 ;;
             --tags) tags="$2"; shift 2 ;;
+            -s|--slug) slug="$2"; shift 2 ;;
             -*) echo "Unknown option: $1" >&2; return 1 ;;
             *) title="$1"; shift ;;
         esac
@@ -179,8 +229,17 @@ cmd_create() {
 
     title="${title:-Untitled}"
     local id
-    id=$(generate_id)
+    if [[ -n "$slug" ]]; then
+        validate_slug "$slug" || return 1
+        id="$(generate_prefix)-${slug}"
+    else
+        id=$(generate_id)
+    fi
     local file="$TICKETS_DIR/${id}.md"
+    if [[ -e "$file" ]]; then
+        echo "Error: ticket '$id' already exists" >&2
+        return 1
+    fi
     local now
     now=$(_iso_date)
 
@@ -323,9 +382,10 @@ cmd_dep_tree() {
 
     END {
         if (prev_file) store()
-        # Resolve partial ID
+        # Resolve partial ID (exact match takes precedence)
         root = ""
-        for (id in statuses) {
+        if (root_pattern in statuses) root = root_pattern
+        else for (id in statuses) {
             if (index(id, root_pattern) > 0) {
                 if (root != "") {
                     print "Error: ambiguous ID " root_pattern > "/dev/stderr"
@@ -622,7 +682,7 @@ cmd_dep() {
     current_deps=$(yaml_field "$file" "deps")
 
     # Add dep if not already present
-    if echo "$current_deps" | grep -q "$dep_id"; then
+    if array_contains "$current_deps" "$dep_id"; then
         echo "Dependency already exists"
         return 0
     fi
@@ -941,16 +1001,13 @@ cmd_undep() {
     local current_deps
     current_deps=$(yaml_field "$file" "deps")
 
-    if ! echo "$current_deps" | grep -q "$dep_id"; then
+    if ! array_contains "$current_deps" "$dep_id"; then
         echo "Dependency not found"
         return 1
     fi
 
-    # Remove dep from array
     local new_deps
-    new_deps=$(echo "$current_deps" | sed "s/, *$dep_id//g; s/$dep_id, *//g; s/$dep_id//g")
-    # Clean up empty array case
-    [[ "$new_deps" == "[]" || "$new_deps" == "[, ]" || "$new_deps" == "[ ]" ]] && new_deps="[]"
+    new_deps=$(array_remove "$current_deps" "$dep_id")
 
     update_yaml_field "$file" "deps" "$new_deps"
     echo "Removed dependency: $(basename "$file" .md) -/-> $dep_id"
@@ -1052,7 +1109,7 @@ cmd_unlink() {
     local current_links
     current_links=$(yaml_field "$file" "links" || true)
 
-    if [[ -z "$current_links" ]] || ! echo "$current_links" | grep -q "$target_id"; then
+    if [[ -z "$current_links" ]] || ! array_contains "$current_links" "$target_id"; then
         echo "Link not found"
         return 1
     fi
@@ -1062,10 +1119,9 @@ cmd_unlink() {
         local f="${pair%%:*}" tid="${pair#*:}"
         local links
         links=$(yaml_field "$f" "links" || true)
-        [[ -z "$links" ]] || ! echo "$links" | grep -q "$tid" && continue
+        [[ -z "$links" ]] || ! array_contains "$links" "$tid" && continue
         local new_links
-        new_links=$(echo "$links" | sed "s/, *$tid//g; s/$tid, *//g; s/$tid//g")
-        [[ "$new_links" == "[]" || "$new_links" == "[, ]" || "$new_links" == "[ ]" ]] && new_links="[]"
+        new_links=$(array_remove "$links" "$tid")
         update_yaml_field "$f" "links" "$new_links"
     done
 
@@ -1267,6 +1323,7 @@ Commands:
     -a, --assignee         Assignee
     --parent               Parent ticket ID
     --tags                 Comma-separated tags (e.g., --tags ui,backend,urgent)
+    -s, --slug             Use slug instead of random suffix in ID (e.g., --slug fix-login)
   start <id>               Set status to in_progress
   close <id>               Set status to closed
   reopen <id>              Set status to open

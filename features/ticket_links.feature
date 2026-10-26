@@ -46,6 +46,25 @@ Feature: Ticket Links
     Then the command should fail
     And the output should be "Link not found"
 
+  Scenario: Unlink leaves links that contain its ID
+    Given a ticket exists with ID "dt-fix" and title "Fix"
+    And a ticket exists with ID "dt-fix-login" and title "Fix login"
+    And ticket "link-0001" is linked to "dt-fix"
+    And ticket "link-0001" is linked to "dt-fix-login"
+    When I run "ticket unlink link-0001 dt-fix"
+    Then the command should succeed
+    And ticket "link-0001" should have field "links" with value "[dt-fix-login]"
+    And ticket "dt-fix-login" should have "link-0001" in links
+    And ticket "dt-fix" should not have "link-0001" in links
+
+  Scenario: Unlink that only matches part of an existing link
+    Given a ticket exists with ID "dt-fix" and title "Fix"
+    And a ticket exists with ID "dt-fix-login" and title "Fix login"
+    And ticket "link-0001" is linked to "dt-fix-login"
+    When I run "ticket unlink link-0001 dt-fix"
+    Then the command should fail
+    And the output should be "Link not found"
+
   Scenario: Link with non-existent ticket
     When I run "ticket link link-0001 nonexistent"
     Then the command should fail

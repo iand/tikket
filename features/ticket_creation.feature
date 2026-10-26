@@ -38,6 +38,42 @@ Feature: Ticket Creation
     Then the command should succeed
     And the created ticket should have field "assignee" with value "John Doe"
 
+  Scenario: Create a ticket with slug
+    When I run "ticket create 'Fix login' --slug fix-login"
+    Then the command should succeed
+    And the output should match pattern "^[a-z0-9]+-fix-login$"
+    And a ticket file should exist with title "Fix login"
+
+  Scenario: Create a ticket with short slug flag
+    When I run "ticket create 'Fix login' -s fix-login"
+    Then the command should succeed
+    And the output should match pattern "^[a-z0-9]+-fix-login$"
+
+  Scenario: Slug is written to the id field
+    When I run "ticket create 'Fix login' --slug fix-login"
+    Then the command should succeed
+    And the created ticket should contain "-fix-login"
+
+  Scenario Outline: Create a ticket with invalid slug
+    When I run "ticket create 'Bad slug' --slug '<slug>'"
+    Then the command should fail
+    And the output should contain "invalid slug"
+
+    Examples:
+      | slug       |
+      | Fix-Login  |
+      | fix_login  |
+      | fix--login |
+      | -fix       |
+      | fix-       |
+      | fix login  |
+
+  Scenario: Create a ticket with duplicate slug
+    When I run "ticket create 'First' --slug fix-login"
+    And I run "ticket create 'Second' --slug fix-login"
+    Then the command should fail
+    And the output should contain "already exists"
+
   Scenario: Create a ticket with parent
     Given a ticket exists with ID "parent-001" and title "Parent ticket"
     When I run "ticket create 'Child ticket' --parent parent-001"

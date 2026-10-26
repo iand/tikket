@@ -27,6 +27,17 @@ nw-5c46: add SSE connection management
 VS Code allows you to Ctrl+Click or Cmd+Click the ID and jump directly to the file to read the
 details.
 
+IDs are the directory prefix plus a random 4-character suffix. Pass `--slug` to `create` to use a
+meaningful suffix instead:
+
+```
+$ tk create "Fix login redirect" --slug fix-login
+nw-fix-login
+```
+
+A slug uses lowercase letters, digits and single hyphens. `create` refuses an ID that already
+exists.
+
 ## Install
 
 **From source (auto-updates on git pull):**
@@ -69,6 +80,7 @@ Commands:
     -a, --assignee         Assignee [default: git user.name]
     --parent               Parent ticket ID
     --tags                 Comma-separated tags (e.g., --tags ui,backend,urgent)
+    -s, --slug             Use slug instead of random suffix in ID (e.g., --slug fix-login)
   start <id>               Set status to in_progress
   close <id>               Set status to closed
   reopen <id>              Set status to open

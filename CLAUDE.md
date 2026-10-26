@@ -9,9 +9,12 @@ See @README.md for usage documentation. Run `tk help` for command reference. Alw
 **Core script:** Single-file bash implementation (`ticket`, ~1300 lines). Uses awk for performant bulk operations on large ticket sets.
 
 Key functions:
-- `generate_id()` - Creates IDs from directory name prefix + random suffix
+- `generate_prefix()` / `generate_id()` - Creates IDs from directory name prefix + random suffix
+- `validate_slug()` - Checks `create --slug` values, which replace the random suffix
 - `ticket_path()` - Resolves partial IDs to full file paths
 - `yaml_field()` / `update_yaml_field()` - YAML frontmatter manipulation via sed
+- `array_contains()` / `array_remove()` - Exact-element operations on inline YAML arrays
+  (`deps`, `links`). Use these rather than grep/sed so `nw-fix` never matches `nw-fix-login`
 - `cmd_*()` - Command handlers
 - `cmd_ready()`, `cmd_blocked()`, `cmd_ls()` - awk-based bulk listing with sorting
 

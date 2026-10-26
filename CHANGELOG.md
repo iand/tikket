@@ -4,6 +4,15 @@
 
 Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 0.3.2.
 
+### Added
+- `-s, --slug` flag for `create` to use a meaningful ID suffix instead of a random one
+- `create` refuses to overwrite an existing ticket ID
+
+### Fixed
+- `dep`, `undep` and `unlink` match whole IDs, so an ID that is a substring of another (e.g.
+  `nw-fix` and `nw-fix-login`) no longer causes false "already exists" results or corrupts arrays
+- `dep tree` prefers an exact ID match over longer IDs containing it
+
 ### Removed
 - `edit` command
 - `query` command (and the `jq` dependency)

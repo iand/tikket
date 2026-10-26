@@ -446,7 +446,7 @@ def step_ticket_has_dep(context, ticket_id, dep_id):
     deps_match = re.search(r'^deps:\s*\[([^\]]*)\]', content, re.MULTILINE)
     assert deps_match, f"deps field not found\nContent: {content}"
     deps = deps_match.group(1)
-    assert dep_id in deps, f"Dependency '{dep_id}' not in deps: [{deps}]"
+    assert dep_id in [d.strip() for d in deps.split(',')], f"Dependency '{dep_id}' not in deps: [{deps}]"
 
 
 @then(r'ticket "(?P<ticket_id>[^"]+)" should not have "(?P<dep_id>[^"]+)" in deps')
@@ -458,7 +458,7 @@ def step_ticket_not_has_dep(context, ticket_id, dep_id):
     deps_match = re.search(r'^deps:\s*\[([^\]]*)\]', content, re.MULTILINE)
     assert deps_match, f"deps field not found\nContent: {content}"
     deps = deps_match.group(1)
-    assert dep_id not in deps, f"Dependency '{dep_id}' should not be in deps: [{deps}]"
+    assert dep_id not in [d.strip() for d in deps.split(',')], f"Dependency '{dep_id}' should not be in deps: [{deps}]"
 
 
 @then(r'ticket "(?P<ticket_id>[^"]+)" should have "(?P<link_id>[^"]+)" in links')
@@ -470,7 +470,7 @@ def step_ticket_has_link(context, ticket_id, link_id):
     links_match = re.search(r'^links:\s*\[([^\]]*)\]', content, re.MULTILINE)
     assert links_match, f"links field not found\nContent: {content}"
     links = links_match.group(1)
-    assert link_id in links, f"Link '{link_id}' not in links: [{links}]"
+    assert link_id in [l.strip() for l in links.split(',')], f"Link '{link_id}' not in links: [{links}]"
 
 
 @then(r'ticket "(?P<ticket_id>[^"]+)" should not have "(?P<link_id>[^"]+)" in links')
@@ -482,7 +482,7 @@ def step_ticket_not_has_link(context, ticket_id, link_id):
     links_match = re.search(r'^links:\s*\[([^\]]*)\]', content, re.MULTILINE)
     assert links_match, f"links field not found\nContent: {content}"
     links = links_match.group(1)
-    assert link_id not in links, f"Link '{link_id}' should not be in links: [{links}]"
+    assert link_id not in [l.strip() for l in links.split(',')], f"Link '{link_id}' should not be in links: [{links}]"
 
 
 @then(r'ticket "(?P<ticket_id>[^"]+)" should contain "(?P<text>[^"]+)"')

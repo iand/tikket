@@ -10,7 +10,7 @@ Feature: Ticket Directory Initialization
     When I run "tikket init"
     Then the command should succeed
     And the output should contain "Initialized"
-    And path ".tickets/.gitkeep" should exist
+    And path ".tickets/.prefix" should exist
 
   Scenario: Init is idempotent
     When I run "tikket init"
@@ -23,7 +23,7 @@ Feature: Ticket Directory Initialization
     And I am in subdirectory "src/deep"
     When I run "tikket init"
     Then the command should succeed
-    And path ".tickets/.gitkeep" should exist
+    And path ".tickets/.prefix" should exist
     And path "src/deep/.tickets" should not exist
 
   Scenario: Tickets created from a subdirectory after init go to the repository root
@@ -39,25 +39,25 @@ Feature: Ticket Directory Initialization
     Given I am in subdirectory "work"
     When I run "tikket init"
     Then the command should succeed
-    And path "work/.tickets/.gitkeep" should exist
+    And path "work/.tickets/.prefix" should exist
 
   Scenario: Init uses TK_DIR when set
     When I run "tikket init" with TK_DIR set to "custom/tickets"
     Then the command should succeed
-    And path "custom/tickets/.gitkeep" should exist
+    And path "custom/tickets/.prefix" should exist
     And path ".tickets" should not exist
 
   Scenario: Init uses TICKETS_DIR when set
     When I run "tikket init" with TICKETS_DIR set to "legacy/tickets"
     Then the command should succeed
-    And path "legacy/tickets/.gitkeep" should exist
+    And path "legacy/tickets/.prefix" should exist
 
   Scenario: Init notes when it hides a tickets directory further up
     Given a clean tickets directory
     And I am in subdirectory "inner"
     When I run "tikket init"
     Then the command should succeed
-    And path "inner/.tickets/.gitkeep" should exist
+    And path "inner/.tickets/.prefix" should exist
     And the output should contain "hides"
 
   Scenario: Init refuses when the target is a file
@@ -78,7 +78,7 @@ Feature: Ticket Directory Initialization
     Then the command should succeed
     And the output should be empty
 
-  Scenario: The .gitkeep file does not trouble check
+  Scenario: The .prefix file does not trouble check
     When I run "tikket init"
     And I run "tikket check"
     Then the command should succeed
@@ -88,3 +88,56 @@ Feature: Ticket Directory Initialization
     When I run "tikket ls"
     Then the command should fail
     And the output should contain "Run 'tk init' to initialize"
+
+  Scenario: Init records the prefix derived from the project directory
+    Given I am in subdirectory "my-shop"
+    When I run "tikket init"
+    Then the command should succeed
+    And the output should contain "ID prefix: ms"
+    And file "my-shop/.tickets/.prefix" should contain exactly "ms"
+
+  Scenario: Init with --prefix records that prefix
+    When I run "tikket init --prefix sf"
+    Then the command should succeed
+    And the output should contain "ID prefix: sf"
+    And file ".tickets/.prefix" should contain exactly "sf"
+
+  Scenario: Init accepts --prefix=value
+    When I run "tikket init --prefix=sf"
+    Then the command should succeed
+    And file ".tickets/.prefix" should contain exactly "sf"
+
+  Scenario: Init on an existing directory without a prefix records one
+    Given a file exists at "my-shop/.tickets/old-0001.md" containing "---"
+    And I am in subdirectory "my-shop"
+    When I run "tikket init"
+    Then the command should succeed
+    And the output should contain "recorded ID prefix: ms"
+    And file "my-shop/.tickets/.prefix" should contain exactly "ms"
+
+  Scenario: Init with --prefix changes an existing prefix
+    Given a file exists at ".tickets/.prefix" containing "old"
+    When I run "tikket init --prefix new"
+    Then the command should succeed
+    And the output should contain "changed from old to new"
+    And file ".tickets/.prefix" should contain exactly "new"
+
+  Scenario: Init without --prefix keeps an existing prefix
+    Given a file exists at ".tickets/.prefix" containing "sf"
+    When I run "tikket init"
+    Then the command should succeed
+    And the output should contain "Already initialized"
+    And file ".tickets/.prefix" should contain exactly "sf"
+
+  Scenario Outline: Init rejects an invalid prefix
+    When I run "tikket init --prefix '<prefix>'"
+    Then the command should fail
+    And the output should contain "invalid prefix"
+    And path ".tickets" should not exist
+
+    Examples:
+      | prefix |
+      | SF     |
+      | s-f    |
+      | s f    |
+      |        |

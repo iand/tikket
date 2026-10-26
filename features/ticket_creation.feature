@@ -53,6 +53,32 @@ Feature: Ticket Creation
     Then the command should succeed
     And the created ticket should have field "assignee" with value "agent-1"
 
+  Scenario: Create uses the recorded prefix
+    Given a file exists at ".tickets/.prefix" containing "sf"
+    When I run "tikket create 'Recorded prefix'"
+    Then the command should succeed
+    And the output should match pattern "^sf-[a-z0-9]{4}$"
+
+  Scenario: Slug IDs use the recorded prefix
+    Given a file exists at ".tickets/.prefix" containing "sf"
+    When I run "tikket create 'Fix login' --slug fix-login"
+    Then the command should succeed
+    And the output should be "sf-fix-login"
+
+  Scenario: Create from a subdirectory takes the prefix from the project directory
+    Given a file exists at "my-shop/.tickets/.keep" containing ""
+    And I am in subdirectory "my-shop/src/deep"
+    When I run "tikket create 'From deep' --slug from-deep"
+    Then the command should succeed
+    And the output should be "ms-from-deep"
+
+  Scenario: Recorded prefix wins over the directory name
+    Given a file exists at "project/.tickets/.prefix" containing "sf"
+    And I am in subdirectory "project"
+    When I run "tikket create 'In project dir' --slug x"
+    Then the command should succeed
+    And the output should be "sf-x"
+
   Scenario: Create a ticket with slug
     When I run "tikket create 'Fix login' --slug fix-login"
     Then the command should succeed

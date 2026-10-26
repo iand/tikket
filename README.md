@@ -30,7 +30,7 @@ nw-5c46: add SSE connection management
 VS Code allows you to Ctrl+Click or Cmd+Click the ID and jump directly to the file to read the
 details.
 
-IDs are the directory prefix plus a random 4-character suffix. Pass `--slug` to `create` to use a
+IDs are the project's prefix (see `tk init` below) plus a random 4-character suffix. Pass `--slug` to `create` to use a
 meaningful suffix instead:
 
 ```
@@ -54,12 +54,19 @@ cd tikket && ln -s "$PWD/tikket" ~/.local/bin/tk
 Then, in each project:
 
 ```bash
-tk init    # creates .tickets/ at the git root (with a .gitkeep so it can be committed)
+tk init                # creates .tickets/ at the git root and records the ID prefix
+tk init --prefix sf    # the same, choosing the prefix (also changes it on an existing project)
 ```
 
 `init` uses `$TK_DIR` or `$TICKETS_DIR` instead when set, and works outside git by creating
 `.tickets/` in the current directory. Without `init`, the first `tk create` creates `.tickets/` in
 the current directory, which may be a subdirectory of the project.
+
+Ticket IDs are `<prefix>-<suffix>`. The prefix is read from `.tickets/.prefix`, which `init`
+writes; commit it so every clone and worktree generates the same IDs whatever its directory is
+called. Without the file, the prefix is derived from the name of the directory that contains
+`.tickets/` (`my-shop` gives `ms`, `plan` gives `pla`). For an existing project, run `tk init` (or
+`tk init --prefix <current prefix>`) once to record it.
 
 ## Requirements
 
@@ -102,7 +109,8 @@ tk - minimal ticket system with dependency tracking
 Usage: tk <command> [args]
 
 Commands:
-  init                     Create .tickets/ at the git root (or current dir, or $TK_DIR)
+  init [--prefix P]        Create .tickets/ at the git root (or current dir, or $TK_DIR)
+                           and record the ID prefix in .tickets/.prefix
   create [title] [options] Create ticket, prints ID
     -d, --description      Description text
     --design               Design notes

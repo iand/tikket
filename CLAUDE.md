@@ -9,7 +9,9 @@ See @README.md for usage documentation. Run `tk help` for command reference. Alw
 **Core script:** Single-file bash implementation (`tikket`, ~1850 lines, installed as `tk`). Uses awk for performant bulk operations on large ticket sets.
 
 Key functions:
-- `generate_prefix()` / `generate_id()` - Creates IDs from directory name prefix + random suffix
+- `ticket_prefix()` - ID prefix: `.tickets/.prefix` if present, else `derive_prefix()` of the
+  directory containing `.tickets/` (never the current directory)
+- `generate_id()` - Prefix + random 4-character suffix
 - `validate_slug()` - Checks `create --slug` values, which replace the random suffix
 - `ticket_path()` - Resolves partial IDs to full file paths
 - `yaml_field()` / `update_yaml_field()` / `remove_yaml_field()` - YAML frontmatter access.

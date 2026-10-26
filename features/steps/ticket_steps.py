@@ -718,3 +718,20 @@ def step_path_not_exists(context, file_path):
     """Assert a path relative to the test directory does not exist."""
     path = Path(context.test_dir) / file_path
     assert not path.exists(), f"{path} should not exist"
+
+
+@given(r'a file exists at "(?P<file_path>[^"]+)" containing "(?P<content>[^"]*)"')
+def step_file_with_content(context, file_path, content):
+    """Create a file with one line of content, relative to the test directory."""
+    path = Path(context.test_dir) / file_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content + '\n')
+
+
+@then(r'file "(?P<file_path>[^"]+)" should contain exactly "(?P<content>[^"]*)"')
+def step_file_contains_exactly(context, file_path, content):
+    """Assert a file's content, ignoring the trailing newline."""
+    path = Path(context.test_dir) / file_path
+    assert path.exists(), f"{path} does not exist"
+    actual = path.read_text().rstrip('\n')
+    assert actual == content, f"{path} contains {actual!r}, expected {content!r}"

@@ -10,8 +10,10 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `TK_DIR` environment variable as an alternative to `TICKETS_DIR`; `TK_DIR` wins if both are set
 
 ### Added
-- `init` command: creates `.tickets/` (with `.gitkeep`) at the git root, the current directory
-  outside git, or `$TK_DIR`/`$TICKETS_DIR`; notes when it hides a `.tickets/` further up
+- `init` command: creates `.tickets/` at the git root, the current directory outside git, or
+  `$TK_DIR`/`$TICKETS_DIR`; notes when it hides a `.tickets/` further up
+- `.tickets/.prefix` records the ticket ID prefix; `init` writes it and `init --prefix P` sets or
+  changes it, so clones and worktrees with different directory names generate the same IDs
 - `-s, --slug` flag for `create` to use a meaningful ID suffix instead of a random one
 - `create` refuses to overwrite an existing ticket ID
 - `check` command: reports missing or self references, one-sided links, parent cycles, invalid
@@ -25,6 +27,9 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `TK_ASSIGNEE` environment variable for the default assignee, claimant and note author
 
 ### Changed
+- Without `.tickets/.prefix`, the ID prefix comes from the directory that contains `.tickets/`,
+  not the current directory, so creating tickets from a subdirectory no longer changes the prefix.
+  Derived prefixes are lowercase letters and digits only (`MyApp.v2` gives `mv`, not `MyA`)
 - `ready` lists open tickets only; `--all` includes in-progress tickets as before
 - `closed` sorts by the `closed:` timestamp instead of file mtime, and filters before applying the
   limit (it previously looked at only the 100 most recently modified files); shows the resolution

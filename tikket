@@ -61,28 +61,55 @@ _iso_date() {
     date -u +%Y-%m-%dT%H:%M:%SZ
 }
 
-# Generate ticket ID prefix from directory name
-generate_prefix() {
-    local dir_name
-    dir_name=$(basename "$(pwd)")
+# Derive an ID prefix from a directory name: first letter of each segment
+# (my-shop -> ms), or the first 3 characters of a single-segment name (plan -> pla)
+derive_prefix() {
+    local name
+    name=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
 
-    # Extract first letter of each hyphenated/underscored segment
     local prefix
-    prefix=$(echo "$dir_name" | sed 's/[-_]/ /g' | awk '{for(i=1;i<=NF;i++) printf substr($i,1,1)}')
+    prefix=$(printf '%s\n' "$name" | sed 's/[^a-z0-9]/ /g' | awk '{for(i=1;i<=NF;i++) printf substr($i,1,1)}')
 
     # Fallback to first 3 chars if single segment (prefix too short)
-    [[ ${#prefix} -lt 2 ]] && prefix="${dir_name:0:3}"
+    if [[ ${#prefix} -lt 2 ]]; then
+        prefix=$(printf '%s' "$name" | tr -cd 'a-z0-9')
+        prefix="${prefix:0:3}"
+    fi
 
+    echo "${prefix:-tk}"
+}
+
+validate_prefix() {
+    local prefix="$1"
+    [[ "$prefix" =~ ^[a-z0-9]+$ ]] && return 0
+    echo "Error: invalid prefix '$prefix'. Use lowercase letters and digits only (e.g. sf)" >&2
+    return 1
+}
+
+# ID prefix for a tickets directory: the recorded one in .prefix, else derived from
+# the name of the directory that contains the tickets directory (not the current
+# directory, so running from a subdirectory gives the same prefix)
+ticket_prefix() {
+    local dir="${1:-$TICKETS_DIR}"
+    local prefix=""
+    if [[ -f "$dir/.prefix" ]]; then
+        read -r prefix < "$dir/.prefix" || true
+    fi
+    if [[ -z "$prefix" ]]; then
+        local root
+        root=$(cd "$(dirname "$dir")" && pwd)
+        prefix=$(derive_prefix "$(basename "$root")")
+    fi
     echo "$prefix"
 }
 
-# Generate ticket ID from directory name + random string
+# Generate ticket ID from the prefix + random string
 generate_id() {
     # 4-char random lower case alphanumeric string
     local hash
     hash=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 4)
 
-    echo "$(generate_prefix)-${hash}"
+    echo "$(ticket_prefix)-${hash}"
 }
 
 # Validate a user-supplied slug: lowercase alphanumeric segments separated by single hyphens
@@ -405,10 +432,21 @@ release_lock() {
 }
 
 cmd_init() {
-    if [[ $# -gt 0 ]]; then
-        echo "Usage: $(basename "$0") init" >&2
-        echo "Creates .tickets/ at the git root (or current directory), or at \$TK_DIR / \$TICKETS_DIR if set" >&2
-        return 1
+    local new_prefix="" prefix_given=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --prefix) new_prefix="${2:-}"; prefix_given=1; shift; [[ $# -gt 0 ]] && shift ;;
+            --prefix=*) new_prefix="${1#--prefix=}"; prefix_given=1; shift ;;
+            *)
+                echo "Usage: $(basename "$0") init [--prefix P]" >&2
+                echo "Creates .tickets/ at the git root (or current directory), or at \$TK_DIR / \$TICKETS_DIR if set," >&2
+                echo "and records the ticket ID prefix in .tickets/.prefix" >&2
+                return 1
+                ;;
+        esac
+    done
+    if [[ $prefix_given -eq 1 ]]; then
+        validate_prefix "$new_prefix" || return 1
     fi
 
     local dir from_env=0
@@ -422,19 +460,37 @@ cmd_init() {
         dir="$root/.tickets"
     fi
 
-    if [[ -d "$dir" ]]; then
-        echo "Already initialized: $dir"
-        return 0
-    fi
-    if [[ -e "$dir" ]]; then
+    if [[ -e "$dir" && ! -d "$dir" ]]; then
         echo "Error: $dir exists and is not a directory" >&2
         return 1
     fi
 
-    mkdir -p "$dir"
-    # Lets git track the directory before the first ticket exists
-    touch "$dir/.gitkeep"
-    echo "Initialized $dir"
+    local existed=0 old_prefix=""
+    if [[ -d "$dir" ]]; then
+        existed=1
+        [[ -f "$dir/.prefix" ]] && { read -r old_prefix < "$dir/.prefix" || true; }
+    else
+        mkdir -p "$dir"
+    fi
+
+    # Record the prefix so every clone and worktree generates the same IDs,
+    # whatever its directory is called. The file also lets git track the directory.
+    local prefix="${new_prefix:-${old_prefix:-$(ticket_prefix "$dir")}}"
+    if [[ "$prefix" != "$old_prefix" ]]; then
+        echo "$prefix" > "$dir/.prefix"
+    fi
+
+    if [[ $existed -eq 0 ]]; then
+        echo "Initialized $dir (ID prefix: $prefix)"
+    elif [[ -z "$old_prefix" ]]; then
+        echo "Already initialized: $dir (recorded ID prefix: $prefix)"
+    elif [[ "$prefix" != "$old_prefix" ]]; then
+        echo "Already initialized: $dir (ID prefix changed from $old_prefix to $prefix; existing tickets keep their IDs)"
+    else
+        echo "Already initialized: $dir (ID prefix: $prefix)"
+        return 0
+    fi
+    [[ $existed -eq 1 ]] && return 0
 
     # Warn when a .tickets/ further up will now be hidden from commands run below this one
     if [[ $from_env -eq 0 ]]; then
@@ -486,7 +542,7 @@ cmd_create() {
     local id
     if [[ -n "$slug" ]]; then
         validate_slug "$slug" || return 1
-        id="$(generate_prefix)-${slug}"
+        id="$(ticket_prefix)-${slug}"
     else
         id=$(generate_id)
     fi
@@ -1860,7 +1916,8 @@ $cmd - minimal ticket system with dependency tracking
 Usage: $cmd <command> [args]
 
 Commands:
-  init                     Create .tickets/ at the git root (or current dir, or \$TK_DIR)
+  init [--prefix P]        Create .tickets/ at the git root (or current dir, or \$TK_DIR)
+                           and record the ID prefix in .tickets/.prefix
   create [title] [options] Create ticket, prints ID
     -d, --description      Description text
     --design               Design notes

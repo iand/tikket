@@ -1952,9 +1952,35 @@ Commands:
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any
 
+Working through tickets:
+  1. Finish your own work first: $cmd ls --status=in_progress -a <you>
+     (ready and next leave out in-progress tickets, including yours)
+  2. Otherwise take $cmd next, then read it with $cmd show <id>. Leave in-progress
+     tickets assigned to others alone.
+  3. $cmd claim <id> before starting. With several agents in one repo, set
+     TK_ASSIGNEE=<your name> on every call, or you all share git user.name.
+  4. $cmd add-note <id> "..." for causes found, decisions and rejected approaches.
+     If you stop early, leave it in progress with a note saying where you got to.
+  5. $cmd close <id> -m "what changed, how it was verified". If the work was dropped:
+     -r wontfix or -r duplicate with the reason. Close children before parents;
+     --force only if the user asks for it.
+
+Work noticed along the way: file it and carry on, rather than fixing it in passing
+  new=\$($cmd create "..." -t bug -d "Found while working on <id>: ...")
+  $cmd link <id> "\$new"
+
+Planning a feature:
+  - An epic (-t epic) and children (--parent <epic>), each with --acceptance
+    criteria and a --slug for a readable ID
+  - Order goes in dependencies, not prose: $cmd dep A B means A waits for B
+  - Make the epic depend on its children, or $cmd next may hand out the epic itself
+  - Check: $cmd dep tree <epic>, then $cmd next returns real work and $cmd check is clean
+
+Change fields with set and the status commands rather than editing frontmatter.
+$cmd never runs git; ticket files are committed like any other change.
+
 Tickets stored as markdown files in .tickets/
 Searches parent directories for .tickets/ (override with TK_DIR or TICKETS_DIR env var)
-Set TK_ASSIGNEE to give each agent its own identity for claim and notes
 Supports partial ID matching (e.g., '$cmd show 5c4' matches 'nw-5c46')
 EOF
 }

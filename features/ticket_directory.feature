@@ -105,3 +105,12 @@ Feature: Ticket Directory Resolution
     When I run "tikket help"
     Then the command should succeed
     And the output should contain "minimal ticket system"
+
+  Scenario: Help includes guidance for working through tickets
+    When I run "tikket help"
+    Then the command should succeed
+    And the output should contain "Working through tickets:"
+    And the output should contain "ls --status=in_progress -a <you>"
+    And the output should contain "Work noticed along the way"
+    And the output should contain "Make the epic depend on its children"
+    And the output should contain "never runs git"

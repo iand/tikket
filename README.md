@@ -85,13 +85,10 @@ Claude Opus picks it up naturally from there. Other models may need additional g
 
 ### Working loop for agents
 
-```bash
-id=$(tk next | cut -d' ' -f1)       # highest-priority open ticket with deps resolved
-tk claim "$id"                     # in_progress + assignee; fails if another agent has it
-tk add-note "$id" "Found the cause in auth.go"
-tk close "$id" -m "Fixed in PR 12"  # or: -r wontfix / -r duplicate
-tk check                           # broken references or invalid fields; exits 1 if any
-```
+`tk help` includes the working conventions as well as the commands: resume your own work first,
+claim before starting, leave notes, close with the outcome, file follow-up work as linked tickets,
+and how to lay out an epic. Agents run it before using tk, so it is the place to change if you
+want them to work differently.
 
 When several agents share one `.tickets/` directory, give each its own identity with
 `TK_ASSIGNEE` (e.g. `TK_ASSIGNEE=agent-2`). It is used as the default assignee for `create`, the
@@ -145,9 +142,35 @@ Commands:
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any
 
+Working through tickets:
+  1. Finish your own work first: tk ls --status=in_progress -a <you>
+     (ready and next leave out in-progress tickets, including yours)
+  2. Otherwise take tk next, then read it with tk show <id>. Leave in-progress
+     tickets assigned to others alone.
+  3. tk claim <id> before starting. With several agents in one repo, set
+     TK_ASSIGNEE=<your name> on every call, or you all share git user.name.
+  4. tk add-note <id> "..." for causes found, decisions and rejected approaches.
+     If you stop early, leave it in progress with a note saying where you got to.
+  5. tk close <id> -m "what changed, how it was verified". If the work was dropped:
+     -r wontfix or -r duplicate with the reason. Close children before parents;
+     --force only if the user asks for it.
+
+Work noticed along the way: file it and carry on, rather than fixing it in passing
+  new=$(tk create "..." -t bug -d "Found while working on <id>: ...")
+  tk link <id> "$new"
+
+Planning a feature:
+  - An epic (-t epic) and children (--parent <epic>), each with --acceptance
+    criteria and a --slug for a readable ID
+  - Order goes in dependencies, not prose: tk dep A B means A waits for B
+  - Make the epic depend on its children, or tk next may hand out the epic itself
+  - Check: tk dep tree <epic>, then tk next returns real work and tk check is clean
+
+Change fields with set and the status commands rather than editing frontmatter.
+tk never runs git; ticket files are committed like any other change.
+
 Tickets stored as markdown files in .tickets/
 Searches parent directories for .tickets/ (override with TK_DIR or TICKETS_DIR env var)
-Set TK_ASSIGNEE to give each agent its own identity for claim and notes
 Supports partial ID matching (e.g., 'tk show 5c4' matches 'nw-5c46')
 ```
 

@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 See @README.md for usage documentation. Run `tk help` for command reference. Always update the README.md usage content when adding/changing commands and flags.
 
+`tk help` is the guide agents read before using tk (they run it first and work from it), so its
+"Working through tickets" and "Planning a feature" sections carry the workflow conventions. Keep
+them accurate when behaviour changes, and keep them short: every agent reads all of it.
+
 ## Architecture
 
 **Core script:** Single-file bash implementation (`tikket`, ~1850 lines, installed as `tk`). Uses awk for performant bulk operations on large ticket sets.

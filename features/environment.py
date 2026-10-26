@@ -11,11 +11,6 @@ def before_all(context):
     # Store the project directory (where the ticket script lives)
     context.project_dir = Path(__file__).parent.parent.resolve()
 
-    # Add project plugins to PATH so extracted commands are found
-    plugins_dir = context.project_dir / 'plugins'
-    if plugins_dir.exists():
-        os.environ['PATH'] = str(plugins_dir) + ':' + os.environ.get('PATH', '')
-
 
 def before_scenario(context, scenario):
     """Create a fresh temporary directory for each scenario."""
@@ -34,8 +29,6 @@ def after_scenario(context, scenario):
     """Clean up temporary directories after each scenario."""
     if hasattr(context, 'test_dir') and os.path.exists(context.test_dir):
         shutil.rmtree(context.test_dir)
-    if hasattr(context, 'plugin_dir') and os.path.exists(context.plugin_dir):
-        shutil.rmtree(context.plugin_dir)
 
 
 def before_feature(context, feature):

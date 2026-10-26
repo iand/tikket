@@ -1,10 +1,8 @@
 """Step definitions for ticket CLI BDD tests."""
 
-import json
 import os
 import re
 import subprocess
-import tempfile
 from pathlib import Path
 
 from behave import given, when, then, register_type, use_step_matcher
@@ -211,30 +209,6 @@ Description
 # When Steps
 # ============================================================================
 
-@when(r'I run "(?P<command>(?:[^"\\]|\\.)+)" in non-TTY mode')
-def step_run_command_non_tty(context, command):
-    """Run a command simulating non-TTY mode."""
-    # Unescape \" to " in the command string
-    command = command.replace('\\"', '"')
-
-    ticket_script = get_ticket_script(context)
-    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
-
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        cwd=context.test_dir,
-        capture_output=True,
-        text=True,
-        stdin=subprocess.DEVNULL  # Simulate non-TTY
-    )
-
-    context.result = result
-    context.stdout = result.stdout.strip()
-    context.stderr = result.stderr.strip()
-    context.returncode = result.returncode
-
-
 @when(r'I run "(?P<command>(?:[^"\\]|\\.)+)" with no stdin')
 def step_run_command_no_stdin(context, command):
     """Run a command with stdin closed."""
@@ -299,19 +273,13 @@ def step_run_command(context, command):
     # Use working_dir if set (from subdirectory step), otherwise test_dir
     cwd = getattr(context, 'working_dir', context.test_dir)
 
-    # Include plugin directory in PATH if plugins were created
-    env = os.environ.copy()
-    if hasattr(context, 'plugin_dir'):
-        env['PATH'] = context.plugin_dir + ':' + env.get('PATH', '')
-
     result = subprocess.run(
         cmd,
         shell=True,
         cwd=cwd,
         capture_output=True,
         text=True,
-        stdin=subprocess.DEVNULL,  # Non-interactive tests
-        env=env
+        stdin=subprocess.DEVNULL  # Non-interactive tests
     )
 
     context.result = result
@@ -556,47 +524,6 @@ def step_output_line_count(context, count):
         f"Expected {count} lines but got {len(lines)}\nOutput: {context.stdout}"
 
 
-@then(r'the output should be valid JSONL')
-def step_output_valid_jsonl(context):
-    """Assert output is valid JSON Lines format."""
-    lines = context.stdout.strip().split('\n')
-    for line in lines:
-        if line.strip():
-            try:
-                json.loads(line)
-            except json.JSONDecodeError as e:
-                raise AssertionError(f"Invalid JSONL line: {line}\nError: {e}")
-
-
-@then(r'the JSONL output should have field "(?P<field>[^"]+)"')
-def step_jsonl_has_field(context, field):
-    """Assert JSONL output has a specific field."""
-    lines = context.stdout.strip().split('\n')
-    assert lines, "No JSONL output"
-
-    for line in lines:
-        if line.strip():
-            data = json.loads(line)
-            assert field in data, f"Field '{field}' not found in JSONL\nData: {data}"
-            break
-
-
-@then(r'the JSONL deps field should be a JSON array')
-def step_jsonl_deps_is_array(context):
-    """Assert deps field in JSONL is an array."""
-    lines = context.stdout.strip().split('\n')
-    assert lines, "No JSONL output"
-
-    for line in lines:
-        if line.strip():
-            data = json.loads(line)
-            if 'deps' in data:
-                assert isinstance(data['deps'], list), \
-                    f"deps field is not an array: {type(data['deps'])}"
-                return
-    raise AssertionError("No JSONL line with deps field found")
-
-
 @then(r'the dep tree output should have (?P<first_id>[^\s]+) before (?P<second_id>[^\s]+)')
 def step_dep_tree_order(context, first_id, second_id):
     """Assert that first_id appears before second_id in dep tree output."""
@@ -616,126 +543,3 @@ def step_dep_tree_order(context, first_id, second_id):
     assert second_line != -1, f"'{second_id}' not found in output:\n{output}"
     assert first_line < second_line, \
         f"Expected '{first_id}' (line {first_line + 1}) before '{second_id}' (line {second_line + 1})\nOutput:\n{output}"
-
-
-# ============================================================================
-# Plugin Steps
-# ============================================================================
-
-def create_plugin(context, name, content):
-    """Helper to create a plugin script in a temporary bin directory."""
-    if not hasattr(context, 'plugin_dir'):
-        context.plugin_dir = tempfile.mkdtemp(prefix='ticket_plugins_')
-
-    plugin_path = Path(context.plugin_dir) / name
-    plugin_path.write_text(content)
-    plugin_path.chmod(0o755)
-    return plugin_path
-
-
-def run_with_plugin_path(context, command):
-    """Run a command with the plugin directory in PATH."""
-    command = command.replace('\\"', '"')
-    ticket_script = get_ticket_script(context)
-    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
-
-    cwd = getattr(context, 'working_dir', context.test_dir)
-
-    env = os.environ.copy()
-    if hasattr(context, 'plugin_dir'):
-        env['PATH'] = context.plugin_dir + ':' + env.get('PATH', '')
-
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        stdin=subprocess.DEVNULL,
-        env=env
-    )
-
-    context.result = result
-    context.stdout = result.stdout.strip()
-    context.stderr = result.stderr.strip()
-    context.returncode = result.returncode
-    context.last_command = command
-
-    if 'ticket create' in command and result.returncode == 0:
-        context.last_created_id = result.stdout.strip()
-
-
-@given(r'a plugin "(?P<name>[^"]+)" that outputs "(?P<output>[^"]+)"')
-def step_plugin_outputs(context, name, output):
-    """Create a plugin that outputs a fixed string."""
-    content = f'''#!/usr/bin/env bash
-# tk-plugin: Test plugin
-echo "{output}"
-'''
-    create_plugin(context, name, content)
-
-
-@given(r'a plugin "(?P<name>[^"]+)" that outputs its arguments')
-def step_plugin_echo_args(context, name):
-    """Create a plugin that echoes its arguments."""
-    content = '''#!/usr/bin/env bash
-# tk-plugin: Echo arguments
-echo "$@"
-'''
-    create_plugin(context, name, content)
-
-
-@given(r'a plugin "(?P<name>[^"]+)" that outputs TICKETS_DIR')
-def step_plugin_outputs_tickets_dir(context, name):
-    """Create a plugin that outputs the TICKETS_DIR env var."""
-    content = '''#!/usr/bin/env bash
-# tk-plugin: Output TICKETS_DIR
-echo "$TICKETS_DIR"
-'''
-    create_plugin(context, name, content)
-
-
-@given(r'a plugin "(?P<name>[^"]+)" that outputs TK_SCRIPT')
-def step_plugin_outputs_tk_script(context, name):
-    """Create a plugin that outputs the TK_SCRIPT env var."""
-    content = '''#!/usr/bin/env bash
-# tk-plugin: Output TK_SCRIPT
-echo "$TK_SCRIPT"
-'''
-    create_plugin(context, name, content)
-
-
-@given(r'a plugin "(?P<name>[^"]+)" with description "(?P<desc>[^"]+)"')
-def step_plugin_with_description(context, name, desc):
-    """Create a plugin with a specific description."""
-    content = f'''#!/usr/bin/env bash
-# tk-plugin: {desc}
-echo "plugin executed"
-'''
-    create_plugin(context, name, content)
-
-
-@given(r'a plugin "(?P<name>[^"]+)" that outputs "(?P<output>[^"]+)" without metadata')
-def step_plugin_no_metadata(context, name, output):
-    """Create a plugin without tk-plugin metadata comment."""
-    content = f'''#!/usr/bin/env bash
-echo "{output}"
-'''
-    create_plugin(context, name, content)
-
-
-@given(r'a plugin "(?P<name>[^"]+)" that calls super create')
-def step_plugin_calls_super(context, name):
-    """Create a plugin that calls the built-in create via super."""
-    content = '''#!/usr/bin/env bash
-# tk-plugin: Wrapper that calls super
-exec "$TK_SCRIPT" super create "$@"
-'''
-    create_plugin(context, name, content)
-
-
-# Override the run step for plugin scenarios to include plugin PATH
-@when(r'I run "(?P<command>(?:[^"\\]|\\.)+)" with plugins')
-def step_run_with_plugins(context, command):
-    """Run a command with plugins in PATH."""
-    run_with_plugin_path(context, command)

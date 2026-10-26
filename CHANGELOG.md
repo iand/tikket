@@ -2,23 +2,17 @@
 
 ## [Unreleased]
 
-### Changed
-- Extracted `edit`, `ls`, `query`, and `migrate-beads` commands to plugins (ticket-extras)
+Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 0.3.2.
 
-### Added
-- Plugin system: executables named `tk-<cmd>` or `ticket-<cmd>` in PATH are invoked automatically
-- `super` command to bypass plugins and run built-in commands directly
-- `TICKETS_DIR` and `TK_SCRIPT` environment variables exported for plugins
-- `help` command lists installed plugins with descriptions
-- Plugin metadata: `# tk-plugin:` comment for scripts, `--tk-describe` flag for binaries
-- Multi-package distribution: `ticket-core`, `ticket-extras`, and individual plugin packages
-- CI scripts for publishing to Homebrew tap and AUR
-
-### Plugins
-- ticket-edit 1.0.0: Open ticket in $EDITOR (extracted from core)
-- ticket-ls 1.0.0: List tickets with optional filters (extracted from core); `ticket-list` symlink for alias
-- ticket-query 1.0.0: Output tickets as JSON, optionally filtered with jq (extracted from core)
-- ticket-migrate-beads 1.0.0: Import tickets from .beads/issues.jsonl (extracted from core)
+### Removed
+- `edit` command
+- `query` command (and the `jq` dependency)
+- `migrate-beads` command
+- `--external-ref` flag for `create`
+- `TICKET_PAGER` / `PAGER` support for `show`
+- `closed` no longer lists tickets with the non-standard status `done`
+- ripgrep preference; plain `grep` is always used
+- Homebrew and AUR packaging, and the release workflow
 
 ## [0.3.2] - 2026-02-03
 

@@ -126,7 +126,8 @@ Commands:
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any
 
-Searches parent directories for .tickets/ (override with TICKETS_DIR env var)
+Tickets stored as markdown files in .tickets/
+Searches parent directories for .tickets/ (override with TK_DIR or TICKETS_DIR env var)
 Set TK_ASSIGNEE to give each agent its own identity for claim and notes
 Supports partial ID matching (e.g., 'tk show 5c4' matches 'nw-5c46')
 ```

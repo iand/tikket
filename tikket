@@ -6,7 +6,8 @@ set -euo pipefail
 
 # Find .tickets directory by walking parent directories
 find_tickets_dir() {
-    # Explicit env var takes priority
+    # Explicit env var takes priority (TK_DIR, then TICKETS_DIR)
+    [[ -n "${TK_DIR:-}" ]] && { echo "$TK_DIR"; return 0; }
     [[ -n "${TICKETS_DIR:-}" ]] && { echo "$TICKETS_DIR"; return 0; }
 
     # Walk parents looking for .tickets
@@ -51,7 +52,7 @@ init_tickets_dir() {
     fi
 
     echo "Error: no .tickets directory found (searched parent directories)" >&2
-    echo "Run 'tk create' to initialize, or set TICKETS_DIR env var" >&2
+    echo "Run 'tk create' to initialize, or set TK_DIR (or TICKETS_DIR) env var" >&2
     return 1
 }
 
@@ -1834,6 +1835,7 @@ Commands:
   check                    Report broken references and invalid fields; exits 1 if any
 
 Tickets stored as markdown files in .tickets/
+Searches parent directories for .tickets/ (override with TK_DIR or TICKETS_DIR env var)
 Set TK_ASSIGNEE to give each agent its own identity for claim and notes
 Supports partial ID matching (e.g., '$cmd show 5c4' matches 'nw-5c46')
 EOF

@@ -253,9 +253,10 @@ def step_run_command_no_stdin(context, command):
     context.returncode = result.returncode
 
 
-@when(r'I run "(?P<command>(?:[^"\\]|\\.)+)" with TICKETS_DIR set to "(?P<tickets_dir>[^"]+)"')
-def step_run_command_with_env(context, command, tickets_dir):
-    """Run a ticket CLI command with custom TICKETS_DIR."""
+@when(r'I run "(?P<command>(?:[^"\\]|\\.)+)" with (?P<var>TICKETS_DIR|TK_DIR) set to "(?P<tickets_dir>[^"]+)"'
+      r'(?: and (?P<var2>TICKETS_DIR|TK_DIR) set to "(?P<tickets_dir2>[^"]+)")?')
+def step_run_command_with_env(context, command, var, tickets_dir, var2=None, tickets_dir2=None):
+    """Run a ticket CLI command with a custom tickets directory variable (or two)."""
     command = command.replace('\\"', '"')
     ticket_script = get_ticket_script(context)
     cmd = command.replace('tikket ', f'{ticket_script} ', 1)
@@ -263,9 +264,13 @@ def step_run_command_with_env(context, command, tickets_dir):
     # Use working_dir if set (from subdirectory step), otherwise test_dir
     cwd = getattr(context, 'working_dir', context.test_dir)
 
-    # Resolve tickets_dir relative to test_dir
+    # Resolve directories relative to test_dir
     env = os.environ.copy()
-    env['TICKETS_DIR'] = str(Path(context.test_dir) / tickets_dir)
+    env.pop('TK_DIR', None)
+    env.pop('TICKETS_DIR', None)
+    env[var] = str(Path(context.test_dir) / tickets_dir)
+    if var2:
+        env[var2] = str(Path(context.test_dir) / tickets_dir2)
 
     result = subprocess.run(
         cmd,
@@ -677,3 +682,11 @@ def step_ticket_not_contains(context, ticket_id, text):
     ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
     content = ticket_path.read_text()
     assert text not in content, f"Ticket should not contain '{text}'\nContent: {content}"
+
+
+@then(r'directory "(?P<dir_path>[^"]+)" should contain a ticket file ending "(?P<suffix>[^"]+)"')
+def step_dir_contains_ticket(context, dir_path, suffix):
+    """Assert a directory (relative to the test dir) holds a file with the given suffix."""
+    directory = Path(context.test_dir) / dir_path
+    names = [p.name for p in directory.glob('*.md')]
+    assert any(n.endswith(suffix) for n in names), f"No file ending '{suffix}' in {directory}: {names}"

@@ -52,7 +52,7 @@ init_tickets_dir() {
     fi
 
     echo "Error: no .tickets directory found (searched parent directories)" >&2
-    echo "Run 'tk create' to initialize, or set TK_DIR (or TICKETS_DIR) env var" >&2
+    echo "Run 'tk init' to initialize, or set TK_DIR (or TICKETS_DIR) env var" >&2
     return 1
 }
 
@@ -130,6 +130,12 @@ array_remove() {
 }
 
 # Ensure tickets directory exists
+# True if the tickets directory holds at least one ticket. Bulk awk passes over
+# "$TICKETS_DIR"/*.md must check this first: an unmatched glob reaches awk literally.
+has_tickets() {
+    compgen -G "$TICKETS_DIR/*.md" > /dev/null
+}
+
 ensure_dir() {
     mkdir -p "$TICKETS_DIR"
 }
@@ -396,6 +402,48 @@ release_lock() {
     rmdir "$_TK_LOCK" 2>/dev/null || true
     _TK_LOCK=""
     trap - EXIT
+}
+
+cmd_init() {
+    if [[ $# -gt 0 ]]; then
+        echo "Usage: $(basename "$0") init" >&2
+        echo "Creates .tickets/ at the git root (or current directory), or at \$TK_DIR / \$TICKETS_DIR if set" >&2
+        return 1
+    fi
+
+    local dir from_env=0
+    if [[ -n "${TK_DIR:-}" ]]; then
+        dir="$TK_DIR"; from_env=1
+    elif [[ -n "${TICKETS_DIR:-}" ]]; then
+        dir="$TICKETS_DIR"; from_env=1
+    else
+        local root
+        root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+        dir="$root/.tickets"
+    fi
+
+    if [[ -d "$dir" ]]; then
+        echo "Already initialized: $dir"
+        return 0
+    fi
+    if [[ -e "$dir" ]]; then
+        echo "Error: $dir exists and is not a directory" >&2
+        return 1
+    fi
+
+    mkdir -p "$dir"
+    # Lets git track the directory before the first ticket exists
+    touch "$dir/.gitkeep"
+    echo "Initialized $dir"
+
+    # Warn when a .tickets/ further up will now be hidden from commands run below this one
+    if [[ $from_env -eq 0 ]]; then
+        local parent outer
+        parent=$(dirname "$(dirname "$dir")")
+        if outer=$(cd "$parent" && TK_DIR="" TICKETS_DIR="" find_tickets_dir); then
+            echo "Note: this hides $outer for commands run under $(dirname "$dir")" >&2
+        fi
+    fi
 }
 
 cmd_create() {
@@ -898,6 +946,11 @@ cmd_dep_tree() {
 }
 
 cmd_dep_cycle() {
+    if ! has_tickets; then
+        echo "No dependency cycles found"
+        return 0
+    fi
+
     awk '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
@@ -1086,6 +1139,8 @@ cmd_ls() {
         esac
     done
 
+    has_tickets || return 0
+
     awk -v status_filter="$status_filter" -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
@@ -1132,6 +1187,8 @@ cmd_ready() {
             *) shift ;;
         esac
     done
+
+    has_tickets || return 0
 
     awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" -v include_active="$include_active" '
     BEGIN { FS=": "; in_front=0 }
@@ -1226,6 +1283,7 @@ cmd_closed() {
 
     # Filter closed tickets, sort by closed timestamp (newest first), then limit.
     # Tickets closed before timestamps were recorded sort last, by created time.
+    has_tickets || return 0
     awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
@@ -1376,6 +1434,8 @@ cmd_blocked() {
             *) shift ;;
         esac
     done
+
+    has_tickets || return 0
 
     awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
     BEGIN { FS=": "; in_front=0 }
@@ -1800,6 +1860,7 @@ $cmd - minimal ticket system with dependency tracking
 Usage: $cmd <command> [args]
 
 Commands:
+  init                     Create .tickets/ at the git root (or current dir, or \$TK_DIR)
   create [title] [options] Create ticket, prints ID
     -d, --description      Description text
     --design               Design notes
@@ -1845,7 +1906,7 @@ EOF
 
 # Initialize tickets dir for built-in commands (skip for help)
 case "${1:-help}" in
-    help|--help|-h) ;;
+    help|--help|-h|init) ;;
     *) init_tickets_dir "${1:-}" || exit 1 ;;
 esac
 
@@ -1870,6 +1931,7 @@ case "${1:-help}" in
     closed) shift; cmd_closed "$@" ;;
     show)   shift; cmd_show "$@" ;;
     add-note) shift; cmd_add_note "$@" ;;
+    init)   shift; cmd_init "$@" ;;
     help|--help|-h) cmd_help ;;
     *)
         echo "Unknown command: $1" >&2

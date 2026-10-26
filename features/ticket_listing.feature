@@ -45,7 +45,26 @@ Feature: Ticket Listing
 
   Scenario: List with no tickets returns nothing
     When I run "tikket ls"
-    Then the output should be empty
+    Then the command should succeed
+    And the output should be empty
+
+  Scenario Outline: Listing commands succeed on an empty tickets directory
+    When I run "tikket <command>"
+    Then the command should succeed
+    And the output should be empty
+
+    Examples:
+      | command |
+      | ls      |
+      | ready   |
+      | next    |
+      | blocked |
+      | closed  |
+
+  Scenario: Dep cycle succeeds on an empty tickets directory
+    When I run "tikket dep cycle"
+    Then the command should succeed
+    And the output should be "No dependency cycles found"
 
   Scenario: Ready shows tickets with no deps and with closed deps
     Given a ticket exists with ID "ready-001" and title "Ready ticket"

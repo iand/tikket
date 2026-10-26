@@ -51,6 +51,16 @@ cd tikket && ln -s "$PWD/tikket" ~/.local/bin/tk
 
 **Or** just copy `tikket` to somewhere in your PATH, named `tk`.
 
+Then, in each project:
+
+```bash
+tk init    # creates .tickets/ at the git root (with a .gitkeep so it can be committed)
+```
+
+`init` uses `$TK_DIR` or `$TICKETS_DIR` instead when set, and works outside git by creating
+`.tickets/` in the current directory. Without `init`, the first `tk create` creates `.tickets/` in
+the current directory, which may be a subdirectory of the project.
+
 ## Requirements
 
 `tk` is a portable bash script requiring only coreutils, so it works out of the box on any POSIX
@@ -92,6 +102,7 @@ tk - minimal ticket system with dependency tracking
 Usage: tk <command> [args]
 
 Commands:
+  init                     Create .tickets/ at the git root (or current dir, or $TK_DIR)
   create [title] [options] Create ticket, prints ID
     -d, --description      Description text
     --design               Design notes

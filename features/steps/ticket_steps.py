@@ -690,3 +690,31 @@ def step_dir_contains_ticket(context, dir_path, suffix):
     directory = Path(context.test_dir) / dir_path
     names = [p.name for p in directory.glob('*.md')]
     assert any(n.endswith(suffix) for n in names), f"No file ending '{suffix}' in {directory}: {names}"
+
+
+@given(r'the test directory is a git repository')
+def step_test_dir_is_git_repo(context):
+    """Initialise a git repository at the test directory root."""
+    subprocess.run(['git', 'init', '-q', context.test_dir], check=True)
+
+
+@given(r'a file exists at "(?P<file_path>[^"]+)"')
+def step_file_exists_at(context, file_path):
+    """Create an empty regular file relative to the test directory."""
+    path = Path(context.test_dir) / file_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('')
+
+
+@then(r'path "(?P<file_path>[^"]+)" should exist')
+def step_path_exists(context, file_path):
+    """Assert a path relative to the test directory exists."""
+    path = Path(context.test_dir) / file_path
+    assert path.exists(), f"{path} does not exist"
+
+
+@then(r'path "(?P<file_path>[^"]+)" should not exist')
+def step_path_not_exists(context, file_path):
+    """Assert a path relative to the test directory does not exist."""
+    path = Path(context.test_dir) / file_path
+    assert not path.exists(), f"{path} should not exist"

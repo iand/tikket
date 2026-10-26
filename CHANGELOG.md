@@ -10,6 +10,8 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `TK_DIR` environment variable as an alternative to `TICKETS_DIR`; `TK_DIR` wins if both are set
 
 ### Added
+- `init` command: creates `.tickets/` (with `.gitkeep`) at the git root, the current directory
+  outside git, or `$TK_DIR`/`$TICKETS_DIR`; notes when it hides a `.tickets/` further up
 - `-s, --slug` flag for `create` to use a meaningful ID suffix instead of a random one
 - `create` refuses to overwrite an existing ticket ID
 - `check` command: reports missing or self references, one-sided links, parent cycles, invalid
@@ -32,6 +34,8 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - Frontmatter updates only touch the frontmatter and accept any characters in values
 
 ### Fixed
+- `ls`, `ready`, `next`, `blocked`, `closed` and `dep cycle` no longer exit with status 2 on an
+  empty tickets directory
 - `dep`, `undep` and `unlink` match whole IDs, so an ID that is a substring of another (e.g.
   `nw-fix` and `nw-fix-login`) no longer causes false "already exists" results or corrupts arrays
 - `dep tree` prefers an exact ID match over longer IDs containing it

@@ -46,3 +46,20 @@ Feature: Ticket Notes
     When I run "ticket add-note 0001 'Partial ID note'"
     Then the command should succeed
     And the output should be "Note added to note-0001"
+
+  Scenario: Note records author from TK_ASSIGNEE
+    When I run "ticket add-note note-0001 'Agent note'" with TK_ASSIGNEE set to "agent-1"
+    Then the command should succeed
+    And ticket "note-0001" should contain "Z** agent-1"
+
+  Scenario: Note records explicit author
+    When I run "ticket add-note note-0001 -a reviewer 'Looks good'"
+    Then the command should succeed
+    And ticket "note-0001" should contain "Z** reviewer"
+    And ticket "note-0001" should contain "Looks good"
+    And ticket "note-0001" should not contain "-a reviewer"
+
+  Scenario: Note author flag without value
+    When I run "ticket add-note note-0001 -a"
+    Then the command should fail
+    And the output should contain "Usage:"

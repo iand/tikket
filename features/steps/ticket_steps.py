@@ -174,6 +174,29 @@ def step_ticket_has_notes(context, ticket_id):
         ticket_path.write_text(content)
 
 
+@given(r'ticket "(?P<ticket_id>[^"]+)" has field "(?P<field>[^"]+)" with value "(?P<value>[^"]*)"')
+def step_ticket_has_field(context, ticket_id, field, value):
+    """Set or add a frontmatter field on a ticket."""
+    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
+    content = ticket_path.read_text()
+    pattern = rf'^{re.escape(field)}:.*$'
+    if re.search(pattern, content, re.MULTILINE):
+        content = re.sub(pattern, f'{field}: {value}', content, count=1, flags=re.MULTILINE)
+    else:
+        # Insert before the closing frontmatter delimiter
+        head, sep, rest = content.partition('\n---\n')
+        content = f'{head}\n{field}: {value}{sep}{rest}'
+    ticket_path.write_text(content)
+
+
+@given(r'a ticket file "(?P<filename>[^"]+)" with content')
+def step_ticket_file_with_content(context, filename):
+    """Write a raw ticket file from the step's docstring."""
+    tickets_dir = Path(context.test_dir) / '.tickets'
+    tickets_dir.mkdir(parents=True, exist_ok=True)
+    (tickets_dir / filename).write_text(context.text + '\n')
+
+
 @given(r'I am in subdirectory "(?P<subdir>[^"]+)"')
 def step_in_subdirectory(context, subdir):
     """Change to a subdirectory (creating it if needed)."""
@@ -259,6 +282,38 @@ def step_run_command_with_env(context, command, tickets_dir):
     context.stderr = result.stderr.strip()
     context.returncode = result.returncode
     context.last_command = command
+
+
+@when(r'I run "(?P<command>(?:[^"\\]|\\.)+)" with TK_ASSIGNEE set to "(?P<assignee>[^"]+)"')
+def step_run_command_as(context, command, assignee):
+    """Run a ticket CLI command with TK_ASSIGNEE set."""
+    command = command.replace('\\"', '"')
+    ticket_script = get_ticket_script(context)
+    cmd = command.replace('ticket ', f'{ticket_script} ', 1)
+
+    cwd = getattr(context, 'working_dir', context.test_dir)
+
+    env = os.environ.copy()
+    env['TK_ASSIGNEE'] = assignee
+
+    result = subprocess.run(
+        cmd,
+        shell=True,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+        env=env
+    )
+
+    context.result = result
+    context.stdout = result.stdout.strip()
+    context.stderr = result.stderr.strip()
+    context.returncode = result.returncode
+    context.last_command = command
+
+    if 'ticket create' in command and result.returncode == 0:
+        context.last_created_id = result.stdout.strip()
 
 
 @when(r'I run "(?P<command>(?:[^"\\]|\\.)+)"')
@@ -437,6 +492,28 @@ def step_ticket_has_field_value(context, ticket_id, field, value):
     assert actual == value, f"Field '{field}' has value '{actual}', expected '{value}'"
 
 
+@then(r'ticket "(?P<ticket_id>[^"]+)" should have field "(?P<field>[^"]+)" matching "(?P<pattern>[^"]+)"')
+def step_ticket_field_matches(context, ticket_id, field, pattern):
+    """Assert a ticket field's value matches a regex."""
+    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
+    content = ticket_path.read_text()
+
+    match = re.search(rf'^{re.escape(field)}:\s*(.+)$', content, re.MULTILINE)
+    assert match, f"Field '{field}' not found in ticket\nContent: {content}"
+    actual = match.group(1).strip()
+    assert re.fullmatch(pattern, actual), f"Field '{field}' value '{actual}' does not match '{pattern}'"
+
+
+@then(r'ticket "(?P<ticket_id>[^"]+)" should not have field "(?P<field>[^"]+)"')
+def step_ticket_lacks_field(context, ticket_id, field):
+    """Assert a ticket's frontmatter does not contain a field."""
+    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
+    content = ticket_path.read_text()
+    frontmatter = content.split('\n---\n', 1)[0]
+    assert not re.search(rf'^{re.escape(field)}:', frontmatter, re.MULTILINE), \
+        f"Field '{field}' should not be present\nContent: {content}"
+
+
 @then(r'ticket "(?P<ticket_id>[^"]+)" should have "(?P<dep_id>[^"]+)" in deps')
 def step_ticket_has_dep(context, ticket_id, dep_id):
     """Assert ticket has a dependency."""
@@ -543,3 +620,60 @@ def step_dep_tree_order(context, first_id, second_id):
     assert second_line != -1, f"'{second_id}' not found in output:\n{output}"
     assert first_line < second_line, \
         f"Expected '{first_id}' (line {first_line + 1}) before '{second_id}' (line {second_line + 1})\nOutput:\n{output}"
+
+
+@given(r'a lock exists for ticket "(?P<ticket_id>[^"]+)"')
+def step_lock_exists(context, ticket_id):
+    """Create a stale lock directory for a ticket."""
+    (Path(context.test_dir) / '.tickets' / f'{ticket_id}.lock').mkdir()
+
+
+@then(r'no lock should exist for ticket "(?P<ticket_id>[^"]+)"')
+def step_no_lock(context, ticket_id):
+    """Assert the ticket's lock directory has been removed."""
+    lock = Path(context.test_dir) / '.tickets' / f'{ticket_id}.lock'
+    assert not lock.exists(), f"Lock {lock} still exists"
+
+
+@when(r'(?P<count>\d+) agents claim "(?P<ticket_id>[^"]+)" at the same time')
+def step_concurrent_claims(context, count, ticket_id):
+    """Start several claim processes at once and collect their results."""
+    ticket_script = get_ticket_script(context)
+    procs = [
+        subprocess.Popen(
+            [ticket_script, 'claim', ticket_id, '-a', f'agent-{i}'],
+            cwd=context.test_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            text=True,
+        )
+        for i in range(int(count))
+    ]
+    outputs = [p.communicate() for p in procs]
+    context.claim_results = [(p.returncode, output) for p, output in zip(procs, outputs)]
+
+
+@then(r'exactly (?P<count>\d+) claims? should succeed')
+def step_claims_succeeded(context, count):
+    """Assert how many concurrent claims succeeded, and that the rest lost cleanly."""
+    winners = [out for rc, (out, err) in context.claim_results if rc == 0]
+    losers = [err for rc, (out, err) in context.claim_results if rc != 0]
+    assert len(winners) == int(count), f"Expected {count} winners, got {len(winners)}: {winners}"
+    for err in losers:
+        assert 'already claimed by' in err, f"Unexpected failure: {err}"
+
+
+@given(r'(?P<count>\d+) open tickets exist')
+def step_many_open_tickets(context, count):
+    """Create a batch of open tickets."""
+    for i in range(int(count)):
+        create_ticket(context, f'bulk-{i:04d}', f'Bulk ticket {i}')
+
+
+@then(r'ticket "(?P<ticket_id>[^"]+)" should not contain "(?P<text>[^"]+)"')
+def step_ticket_not_contains(context, ticket_id, text):
+    """Assert ticket file does not contain text."""
+    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
+    content = ticket_path.read_text()
+    assert text not in content, f"Ticket should not contain '{text}'\nContent: {content}"

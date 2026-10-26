@@ -7,6 +7,24 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 ### Added
 - `-s, --slug` flag for `create` to use a meaningful ID suffix instead of a random one
 - `create` refuses to overwrite an existing ticket ID
+- `check` command: reports missing or self references, one-sided links, parent cycles, invalid
+  status/type/priority/resolution, id/filename mismatches and malformed frontmatter; exits 1 if any
+- `set <id> <field> <value>` for title, type, priority, assignee, parent and tags
+- `next` command: the single highest-priority ready ticket
+- `claim` command: sets in_progress and assignee under a lock; fails if another assignee has it
+- `close -m/--message` adds a note, `close -r/--resolution done|wontfix|duplicate` records the outcome
+- `closed:` timestamp and `resolution:` field written on close and removed on reopen/start
+- `add-note -a/--author`; notes record their author
+- `TK_ASSIGNEE` environment variable for the default assignee, claimant and note author
+
+### Changed
+- `ready` lists open tickets only; `--all` includes in-progress tickets as before
+- `closed` sorts by the `closed:` timestamp instead of file mtime, and filters before applying the
+  limit (it previously looked at only the 100 most recently modified files); shows the resolution
+- `close` and `status <id> closed` refuse a ticket with open children unless `close --force`
+- `dep` refuses a dependency on itself or one that would create a cycle
+- `create` validates `--type` and `--priority`
+- Frontmatter updates only touch the frontmatter and accept any characters in values
 
 ### Fixed
 - `dep`, `undep` and `unlink` match whole IDs, so an ID that is a substring of another (e.g.

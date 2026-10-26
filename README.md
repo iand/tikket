@@ -63,6 +63,24 @@ This project uses a CLI ticket system for task management. Run `tk help` when yo
 
 Claude Opus picks it up naturally from there. Other models may need additional guidance.
 
+### Working loop for agents
+
+```bash
+id=$(tk next | cut -d' ' -f1)       # highest-priority open ticket with deps resolved
+tk claim "$id"                     # in_progress + assignee; fails if another agent has it
+tk add-note "$id" "Found the cause in auth.go"
+tk close "$id" -m "Fixed in PR 12"  # or: -r wontfix / -r duplicate
+tk check                           # broken references or invalid fields; exits 1 if any
+```
+
+When several agents share one `.tickets/` directory, give each its own identity with
+`TK_ASSIGNEE` (e.g. `TK_ASSIGNEE=agent-2`). It is used as the default assignee for `create`, the
+claimant for `claim` and the author of notes. Without it, `git config user.name` is used.
+
+`claim` holds a lock directory (`.tickets/<id>.lock`) while it checks and updates the ticket, so
+concurrent claims have exactly one winner. Other commands do not take the lock. If a `tk` process is
+killed while claiming, remove the lock directory by hand.
+
 ## Usage
 
 ```bash
@@ -77,28 +95,36 @@ Commands:
     --acceptance           Acceptance criteria
     -t, --type             Type (bug|feature|task|epic|chore) [default: task]
     -p, --priority         Priority 0-4, 0=highest [default: 2]
-    -a, --assignee         Assignee [default: git user.name]
+    -a, --assignee         Assignee [default: $TK_ASSIGNEE or git user.name]
     --parent               Parent ticket ID
     --tags                 Comma-separated tags (e.g., --tags ui,backend,urgent)
     -s, --slug             Use slug instead of random suffix in ID (e.g., --slug fix-login)
+  set <id> <field> <value> Set title|type|priority|assignee|parent|tags (empty clears)
   start <id>               Set status to in_progress
-  close <id>               Set status to closed
+  claim <id> [-a X]        Start a ticket and assign it; fails if someone else has it
+  close <id> [options]     Set status to closed (refuses if children are open)
+    -m, --message          Add a note explaining the outcome
+    -r, --resolution       done|wontfix|duplicate [default: done]
+    -f, --force            Close even if children are open
   reopen <id>              Set status to open
   status <id> <status>     Update status (open|in_progress|closed)
-  dep <id> <dep-id>        Add dependency (id depends on dep-id)
+  dep <id> <dep-id>        Add dependency (id depends on dep-id; refuses cycles)
   dep tree [--full] <id>   Show dependency tree (--full disables dedup)
   dep cycle                Find dependency cycles in open tickets
   undep <id> <dep-id>      Remove dependency
   link <id> <id> [id...]   Link tickets together (symmetric)
   unlink <id> <target-id>  Remove link between tickets
   ls|list [--status=X] [-a X] [-T X]   List tickets
-  ready [-a X] [-T X]      List open/in-progress tickets with deps resolved
+  ready [-a X] [-T X] [--all]  List open tickets with deps resolved (--all adds in-progress)
+  next [-a X] [-T X]       Show the single highest-priority ready ticket
   blocked [-a X] [-T X]    List open/in-progress tickets with unresolved deps
-  closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, by mtime)
+  closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, newest first)
   show <id>                Display ticket
-  add-note <id> [text]     Append timestamped note (or pipe via stdin)
+  add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
+  check                    Report broken references and invalid fields; exits 1 if any
 
 Searches parent directories for .tickets/ (override with TICKETS_DIR env var)
+Set TK_ASSIGNEE to give each agent its own identity for claim and notes
 Supports partial ID matching (e.g., 'tk show 5c4' matches 'nw-5c46')
 ```
 

@@ -179,3 +179,37 @@ Feature: Ticket Dependencies
     And the dep tree output should have task-0010 before task-0015
     And the dep tree output should have task-0010 before task-0020
     And the dep tree output should have task-0015 before task-0020
+
+  Scenario: Dependency on itself is refused
+    When I run "ticket dep task-0001 task-0001"
+    Then the command should fail
+    And the output should contain "cannot depend on itself"
+    And ticket "task-0001" should have field "deps" with value "[]"
+
+  Scenario: Direct dependency cycle is refused
+    Given ticket "task-0002" depends on "task-0001"
+    When I run "ticket dep task-0001 task-0002"
+    Then the command should fail
+    And the output should contain "dependency would create a cycle: task-0001 -> task-0002 -> task-0001"
+    And ticket "task-0001" should have field "deps" with value "[]"
+
+  Scenario: Indirect dependency cycle is refused
+    Given ticket "task-0002" depends on "task-0003"
+    And ticket "task-0003" depends on "task-0001"
+    When I run "ticket dep task-0001 task-0002"
+    Then the command should fail
+    And the output should contain "task-0001 -> task-0002 -> task-0003 -> task-0001"
+
+  Scenario: Cycle through a closed ticket is refused
+    Given ticket "task-0002" depends on "task-0001"
+    And ticket "task-0002" has status "closed"
+    When I run "ticket dep task-0001 task-0002"
+    Then the command should fail
+    And the output should contain "dependency would create a cycle"
+
+  Scenario: Diamond dependencies are allowed
+    Given ticket "task-0001" depends on "task-0002"
+    And ticket "task-0002" depends on "task-0003"
+    When I run "ticket dep task-0001 task-0003"
+    Then the command should succeed
+    And ticket "task-0001" should have "task-0003" in deps

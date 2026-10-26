@@ -38,6 +38,21 @@ Feature: Ticket Creation
     Then the command should succeed
     And the created ticket should have field "assignee" with value "John Doe"
 
+  Scenario: Create a ticket with invalid type
+    When I run "ticket create 'Bad type' -t story"
+    Then the command should fail
+    And the output should contain "invalid type 'story'"
+
+  Scenario: Create a ticket with invalid priority
+    When I run "ticket create 'Bad priority' -p 7"
+    Then the command should fail
+    And the output should contain "invalid priority '7'"
+
+  Scenario: Create uses TK_ASSIGNEE as default assignee
+    When I run "ticket create 'Agent ticket'" with TK_ASSIGNEE set to "agent-1"
+    Then the command should succeed
+    And the created ticket should have field "assignee" with value "agent-1"
+
   Scenario: Create a ticket with slug
     When I run "ticket create 'Fix login' --slug fix-login"
     Then the command should succeed

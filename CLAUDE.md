@@ -6,13 +6,18 @@ See @README.md for usage documentation. Run `tk help` for command reference. Alw
 
 ## Architecture
 
-**Core script:** Single-file bash implementation (`ticket`, ~1300 lines). Uses awk for performant bulk operations on large ticket sets.
+**Core script:** Single-file bash implementation (`ticket`, ~1850 lines). Uses awk for performant bulk operations on large ticket sets.
 
 Key functions:
 - `generate_prefix()` / `generate_id()` - Creates IDs from directory name prefix + random suffix
 - `validate_slug()` - Checks `create --slug` values, which replace the random suffix
 - `ticket_path()` - Resolves partial IDs to full file paths
-- `yaml_field()` / `update_yaml_field()` - YAML frontmatter manipulation via sed
+- `yaml_field()` / `update_yaml_field()` / `remove_yaml_field()` - YAML frontmatter access.
+  Updates use awk with values passed through `ENVIRON`, and only touch the frontmatter
+- `set_status()` - The only place status changes; keeps `closed:` and `resolution:` in step
+- `find_path()` - Path search over `deps` or `parent` edges; used to refuse cycles
+- `acquire_lock()` / `release_lock()` - `mkdir` lock used by `claim`
+- `current_user()` - `TK_ASSIGNEE`, else git user.name
 - `array_contains()` / `array_remove()` - Exact-element operations on inline YAML arrays
   (`deps`, `links`). Use these rather than grep/sed so `nw-fix` never matches `nw-fix-login`
 - `cmd_*()` - Command handlers

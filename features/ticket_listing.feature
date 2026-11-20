@@ -263,3 +263,49 @@ Feature: Ticket Listing
     When I run "tikket close done-0001 -r wontfix"
     And I run "tikket closed"
     Then the output should match pattern "done-0001\s+\[wontfix\]\s+-\s+Dropped"
+
+  Scenario: Browse lists epics first with children indented under their parent
+    Given a ticket exists with ID "br-a-loose" and title "Loose ticket"
+    And a ticket exists with ID "br-z-epic" and title "Big epic"
+    And ticket "br-z-epic" has field "type" with value "epic"
+    And a ticket exists with ID "br-m-child" and title "Child ticket" with parent "br-z-epic"
+    When I run "tikket browse --print"
+    Then the command should succeed
+    And the output line count should be 3
+    And the output line 1 should contain "Big epic (0/1)"
+    And the output line 2 should contain "Child ticket"
+    And the output line 3 should contain "Loose ticket"
+    And the output should match pattern "br-m-child\tbr-m-child\s+open\s+task\s+P2    Child ticket"
+
+  Scenario: Browse orders siblings by priority
+    Given a ticket exists with ID "br-a" and title "Low priority" with priority 3
+    And a ticket exists with ID "br-b" and title "High priority" with priority 0
+    When I run "tikket browse --print"
+    Then the output line 1 should contain "High priority"
+    And the output line 2 should contain "Low priority"
+
+  Scenario: Browse status filter keeps parents of matching tickets
+    Given a ticket exists with ID "br-epic" and title "Epic"
+    And a ticket exists with ID "br-done" and title "Done child" with parent "br-epic"
+    And a ticket exists with ID "br-open" and title "Open child" with parent "br-epic"
+    And ticket "br-done" has status "closed"
+    When I run "tikket browse --print --status=closed"
+    Then the command should succeed
+    And the output line count should be 2
+    And the output should contain "Epic (1/2)"
+    And the output should contain "Done child"
+    And the output should not contain "Open child"
+
+  Scenario: Browse shows tickets with a missing parent at the top level
+    Given a ticket exists with ID "br-orphan" and title "Orphan" with parent "br-gone"
+    When I run "tikket browse --print"
+    Then the output should match pattern "P2  Orphan"
+
+  Scenario: Browse rejects an invalid status
+    When I run "tikket browse --print --status=bogus"
+    Then the command should fail
+
+  Scenario: Browse prints nothing on an empty tickets directory
+    When I run "tikket browse --print"
+    Then the command should succeed
+    And the output should be empty

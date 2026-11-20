@@ -1907,6 +1907,148 @@ cmd_add_note() {
     echo "Note added to $(basename "$file" .md)"
 }
 
+# Print the browse list: one line per ticket as "id<TAB>display", children indented under
+# their parent, epics before other tickets, then by priority and id. With a status filter,
+# ancestors of matching tickets are kept for context (dimmed when ansi=1).
+browse_list() {
+    local status_filter="$1" ansi="$2"
+
+    has_tickets || return 0
+
+    awk -v status_filter="$status_filter" -v ansi="$ansi" '
+    BEGIN { FS=": "; n=0 }
+    FNR==1 {
+        if (prev_file) store()
+        fm=0; id=""; status=""; type=""; priority=""; parent=""; title=""
+        prev_file=FILENAME
+    }
+    /^---$/ && fm < 2 { fm++; next }
+    fm == 1 && /^id:/ { id = $2 }
+    fm == 1 && /^status:/ { status = $2 }
+    fm == 1 && /^type:/ { type = $2 }
+    fm == 1 && /^priority:/ { priority = $2 }
+    fm == 1 && /^parent:/ { parent = $2 }
+    fm == 2 && /^# / && title == "" { title = substr($0, 3) }
+    function store() {
+        if (id == "" || (id in known)) return
+        ids[++n] = id; known[id] = 1
+        statuses[id] = status; types[id] = type; parents[id] = parent
+        prios[id] = (priority ~ /^[0-9]$/) ? priority : 9
+        gsub(/\t/, " ", title); titles[id] = title
+    }
+    # Sort segment for one ticket: epics first, then priority, then id
+    function seg(t) { return (types[t] == "epic" ? "0" : "1") prios[t] t }
+    END {
+        if (prev_file) store()
+
+        # A parent counts only if it exists and its chain reaches a root; tickets caught in
+        # a parent cycle (reported by check) are shown as roots
+        for (i = 1; i <= n; i++) {
+            t = ids[i]; p = parents[t]; steps = 0
+            while ((p in known) && steps <= n) { p = parents[p]; steps++ }
+            up[t] = ((parents[t] in known) && steps <= n) ? parents[t] : ""
+        }
+
+        for (i = 1; i <= n; i++) {
+            t = ids[i]
+            matched[t] = (status_filter == "" || statuses[t] == status_filter)
+            if (up[t] != "") {
+                total[up[t]]++
+                if (statuses[t] == "closed") done[up[t]]++
+            }
+        }
+        for (i = 1; i <= n; i++) {
+            t = ids[i]
+            if (!matched[t]) continue
+            for (a = t; a != "" && !(a in visible); a = up[a]) visible[a] = 1
+        }
+
+        w = 0
+        for (t in visible) if (length(t) > w) w = length(t)
+        idfmt = "%-" w "s"
+
+        for (t in visible) {
+            key = seg(t); depth = 0
+            for (a = up[t]; a != ""; a = up[a]) { key = seg(a) " " key; depth++ }
+
+            indent = ""
+            for (d = 0; d < depth; d++) indent = indent "  "
+            progress = (t in total) ? sprintf(" (%d/%d)", done[t], total[t]) : ""
+            status = sprintf("%-11s", statuses[t])
+            title = titles[t]
+            line_start = ""; line_end = ""
+            if (ansi) {
+                if (!matched[t]) { line_start = "\033[2m"; line_end = "\033[0m" }
+                else {
+                    if (statuses[t] == "in_progress") status = "\033[33m" status "\033[0m"
+                    else if (statuses[t] == "closed") status = "\033[2m" status "\033[0m"
+                    if (types[t] == "epic") title = "\033[1m" title "\033[0m"
+                }
+            }
+            printf "%s\t%s\t%s" idfmt "  %s  %-7s P%s  %s%s%s%s\n", key, t, line_start, t, status, types[t], prios[t], indent, title, progress, line_end
+        }
+    }
+    ' "$TICKETS_DIR"/*.md 2>/dev/null | LC_ALL=C sort -t "$(printf '\t')" -k1,1 | cut -f2-
+}
+
+cmd_browse() {
+    local status_filter="" print=0 ansi=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --status=*) status_filter="${1#--status=}"; shift ;;
+            --print) print=1; shift ;;
+            --ansi) ansi=1; shift ;;  # colour the --print output; used by the fzf reloads
+            *) echo "Unknown option: $1" >&2; return 1 ;;
+        esac
+    done
+
+    if [[ -n "$status_filter" ]]; then
+        validate_status "$status_filter" || return 1
+    fi
+
+    if [[ $print -eq 1 ]]; then
+        browse_list "$status_filter" "$ansi"
+        return 0
+    fi
+
+    if ! command -v fzf > /dev/null 2>&1; then
+        echo "Error: browse needs fzf (https://github.com/junegunn/fzf); use --print without it" >&2
+        return 1
+    fi
+    if ! has_tickets; then
+        echo "No tickets in $TICKETS_DIR" >&2
+        return 0
+    fi
+
+    # fzf runs these through a shell, so pin the tickets directory and quote our own path
+    TK_DIR=$(cd "$TICKETS_DIR" && pwd)
+    export TK_DIR
+    local self list pager
+    self=$(printf '%q' "$0")
+    list="$self browse --print --ansi --status="
+    pager="${PAGER:-less}"
+
+    local rc=0
+    browse_list "$status_filter" 1 | fzf \
+        --ansi --no-sort --layout=reverse --info=inline \
+        --delimiter="$(printf '\t')" --with-nth=2.. \
+        --prompt="${status_filter:-all}> " \
+        --header=$'alt-a all  alt-o open  alt-i in_progress  alt-c closed\nenter read  ctrl-o layout  ctrl-/ preview  shift-up/dn scroll' \
+        --preview="$self show {1}" \
+        --preview-window='right,55%,wrap' \
+        --bind="enter:execute($self show {1} | $pager)" \
+        --bind='ctrl-o:change-preview-window(down,75%,wrap|right,55%,wrap)' \
+        --bind='ctrl-/:toggle-preview' \
+        --bind="alt-a:reload(${list})+change-prompt(all> )" \
+        --bind="alt-o:reload(${list}open)+change-prompt(open> )" \
+        --bind="alt-i:reload(${list}in_progress)+change-prompt(in_progress> )" \
+        --bind="alt-c:reload(${list}closed)+change-prompt(closed> )" \
+        > /dev/null || rc=$?
+
+    # 1 = no match, 130 = esc/ctrl-c: both are normal ways to leave
+    [[ $rc -eq 0 || $rc -eq 1 || $rc -eq 130 ]] || return "$rc"
+}
+
 cmd_help() {
     local cmd
     cmd=$(basename "$0")
@@ -1951,6 +2093,8 @@ Commands:
   show <id>                Display ticket
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any
+  browse [--status=X] [--print]  Browse tickets grouped by parent in fzf, with a preview
+                           (--print writes the list to stdout instead; for humans, not agents)
 
 Working through tickets:
   1. Finish your own work first: $cmd ls --status=in_progress -a <you>
@@ -2014,6 +2158,7 @@ case "${1:-help}" in
     closed) shift; cmd_closed "$@" ;;
     show)   shift; cmd_show "$@" ;;
     add-note) shift; cmd_add_note "$@" ;;
+    browse) shift; cmd_browse "$@" ;;
     init)   shift; cmd_init "$@" ;;
     help|--help|-h) cmd_help ;;
     *)

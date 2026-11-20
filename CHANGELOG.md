@@ -10,6 +10,9 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `TK_DIR` environment variable as an alternative to `TICKETS_DIR`; `TK_DIR` wins if both are set
 
 ### Added
+- `browse` command: interactive fzf view of tickets grouped under their parents, with status
+  filter keys, a `tk show` preview and Enter to read in `$PAGER`; `--print` writes the list
+  without fzf. fzf is needed only for this command
 - `tk help` includes short workflow guidance for agents: resuming your own work, claiming,
   notes, closing with an outcome, filing follow-up work, and planning an epic
 - `init` command: creates `.tickets/` at the git root, the current directory outside git, or

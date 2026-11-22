@@ -77,11 +77,14 @@ system with bash installed. The optional `browse` command also needs fzf.
 
 `tk browse` opens the tickets in [fzf](https://github.com/junegunn/fzf), which is the only command
 that needs it. Epics come first with their children indented beneath them, then tickets with no
-parent; siblings are ordered by priority, and a parent shows its closed/total child count. Typing
-filters the list by text, and the preview pane shows `tk show` for the selected ticket.
+parent; siblings are ordered by priority, and a parent shows its closed/total child count. The
+view starts on unfinished tickets (open and in_progress); `--status=X` starts on another status
+or a comma-separated list of them, and `--status=` on all tickets. Typing filters the list by
+text, and the preview pane shows `tk show` for the selected ticket.
 
 | Key                   | Action                                                       |
 |-----------------------|--------------------------------------------------------------|
+| alt-u                 | Show unfinished tickets (open and in_progress)               |
 | alt-a/o/i/c           | Show all, open, in_progress or closed tickets                |
 | enter                 | Read the ticket in `$PAGER` (default `less`)                 |
 | ctrl-o                | Move the preview between the right side and the bottom       |
@@ -161,7 +164,9 @@ Commands:
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any
   browse [--status=X] [--print]  Browse tickets grouped by parent in fzf, with a preview
-                           (--print writes the list to stdout instead; for humans, not agents)
+                           (X may be a comma list; starts on open,in_progress, --status=
+                           for all. --print writes the list to stdout instead; for humans,
+                           not agents)
 
 Working through tickets:
   1. Finish your own work first: tk ls --status=in_progress -a <you>

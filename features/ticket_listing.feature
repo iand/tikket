@@ -296,6 +296,23 @@ Feature: Ticket Listing
     And the output should contain "Done child"
     And the output should not contain "Open child"
 
+  Scenario: Browse status filter accepts a comma-separated list
+    Given a ticket exists with ID "br-open" and title "Open one"
+    And a ticket exists with ID "br-wip" and title "Working one"
+    And a ticket exists with ID "br-done" and title "Done one"
+    And ticket "br-wip" has status "in_progress"
+    And ticket "br-done" has status "closed"
+    When I run "tikket browse --print --status=open,in_progress"
+    Then the command should succeed
+    And the output line count should be 2
+    And the output should contain "Open one"
+    And the output should contain "Working one"
+    And the output should not contain "Done one"
+
+  Scenario: Browse rejects an invalid status in a list
+    When I run "tikket browse --print --status=open,bogus"
+    Then the command should fail
+
   Scenario: Browse shows tickets with a missing parent at the top level
     Given a ticket exists with ID "br-orphan" and title "Orphan" with parent "br-gone"
     When I run "tikket browse --print"

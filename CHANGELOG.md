@@ -37,6 +37,10 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
   not the current directory, so creating tickets from a subdirectory no longer changes the prefix.
   Derived prefixes are lowercase letters and digits only (`MyApp.v2` gives `mv`, not `MyA`)
 - `ready` lists open tickets only; `--all` includes in-progress tickets as before
+- `ready` and `next` rank a ticket by the most urgent priority of any unclosed ticket that
+  depends on it, directly or transitively, so an epic's children come before other work of
+  their own priority. Inherited priorities show as `[P2→P1]`; ties fall back to the ticket's
+  own priority, then ID
 - `closed` sorts by the `closed:` timestamp instead of file mtime, and filters before applying the
   limit (it previously looked at only the 100 most recently modified files); shows the resolution
 - `close` and `status <id> closed` refuse a ticket with open children unless `close --force`

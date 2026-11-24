@@ -118,6 +118,52 @@ Feature: Ticket Listing
     And the output line 2 should contain "ready-002"
     And the output line 3 should contain "ready-003"
 
+  Scenario: Ready ranks a ticket by the priority of tickets that depend on it
+    Given a ticket exists with ID "ready-001" and title "Unrelated" with priority 2
+    And a ticket exists with ID "ready-002" and title "Epic" with priority 1
+    And a ticket exists with ID "ready-003" and title "Middle" with priority 2
+    And a ticket exists with ID "ready-004" and title "Leaf" with priority 3
+    And ticket "ready-002" depends on "ready-003"
+    And ticket "ready-003" depends on "ready-004"
+    When I run "tikket ready"
+    Then the command should succeed
+    And the output line count should be 2
+    And the output line 1 should match pattern "^ready-004\s+\[P3→P1\]\[open\]\s+-\s+Leaf$"
+    And the output line 2 should match pattern "^ready-001\s+\[P2\]\[open\]"
+
+  Scenario: Ready orders by own priority when inherited priorities tie
+    Given a ticket exists with ID "ready-001" and title "Epic" with priority 0
+    And a ticket exists with ID "ready-002" and title "Low child" with priority 3
+    And a ticket exists with ID "ready-003" and title "High child" with priority 1
+    And ticket "ready-001" depends on "ready-002"
+    And ticket "ready-001" depends on "ready-003"
+    When I run "tikket ready"
+    Then the output line 1 should contain "ready-003"
+    And the output line 2 should contain "ready-002"
+
+  Scenario: Ready ignores the priority of closed dependents
+    Given a ticket exists with ID "ready-001" and title "Unrelated" with priority 2
+    And a ticket exists with ID "ready-002" and title "Closed epic" with priority 0
+    And a ticket exists with ID "ready-003" and title "Leftover" with priority 3
+    And ticket "ready-002" depends on "ready-003"
+    And ticket "ready-002" has status "closed"
+    When I run "tikket ready"
+    Then the output line 1 should contain "ready-001"
+    And the output line 2 should match pattern "^ready-003\s+\[P3\]\[open\]"
+
+  Scenario: Ready inherits priority through a dependency cycle
+    Given a ticket exists with ID "ready-001" and title "Cycle A" with priority 0
+    And a ticket exists with ID "ready-002" and title "Cycle B" with priority 2
+    And a ticket exists with ID "ready-003" and title "Below the cycle" with priority 3
+    And a ticket exists with ID "ready-004" and title "Unrelated" with priority 1
+    And ticket "ready-001" depends on "ready-002"
+    And ticket "ready-002" depends on "ready-001"
+    And ticket "ready-002" depends on "ready-003"
+    When I run "tikket ready"
+    Then the command should succeed
+    And the output line 1 should contain "[P3→P0]"
+    And the output line 2 should contain "ready-004"
+
   Scenario: Blocked shows tickets with unclosed deps
     Given a ticket exists with ID "block-001" and title "Blocked ticket"
     And a ticket exists with ID "block-002" and title "Blocker ticket"
@@ -203,11 +249,21 @@ Feature: Ticket Listing
     Given a ticket exists with ID "ready-003" and title "Low priority" with priority 3
     And a ticket exists with ID "ready-001" and title "High priority" with priority 1
     And a ticket exists with ID "ready-002" and title "Blocked high priority" with priority 0
-    And ticket "ready-002" depends on "ready-003"
+    And a ticket exists with ID "ready-004" and title "Blocker in progress" with priority 3
+    And ticket "ready-004" has status "in_progress"
+    And ticket "ready-002" depends on "ready-004"
     When I run "tikket next"
     Then the command should succeed
     And the output line count should be 1
     And the output should match pattern "^ready-001\s+\[P1\]\[open\]\s+-\s+High priority$"
+
+  Scenario: Next prefers the dependencies of a higher-priority ticket
+    Given a ticket exists with ID "ready-001" and title "Other work" with priority 2
+    And a ticket exists with ID "ready-002" and title "Epic" with priority 1
+    And a ticket exists with ID "ready-003" and title "Epic child" with priority 2
+    And ticket "ready-002" depends on "ready-003"
+    When I run "tikket next"
+    Then the output should match pattern "^ready-003\s+\[P2→P1\]\[open\]\s+-\s+Epic child$"
 
   Scenario: Next respects filters
     Given a ticket exists with ID "ready-001" and title "Mine" with priority 3

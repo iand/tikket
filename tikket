@@ -1281,6 +1281,23 @@ cmd_ready() {
     }
     END {
         if (prev_file) store()
+
+        # Effective priority: a ticket inherits the most urgent priority of any unclosed
+        # ticket that depends on it, directly or transitively. Values only decrease, so
+        # repeating until nothing changes terminates, cycles included.
+        for (id in statuses) eff[id] = priorities[id] + 0
+        do {
+            changed = 0
+            for (id in statuses) {
+                if (statuses[id] == "closed" || deps_raw[id] == "") continue
+                n = split(deps_raw[id], arr, ",")
+                for (i = 1; i <= n; i++) {
+                    dep = arr[i]
+                    if ((dep in eff) && eff[id] < eff[dep]) { eff[dep] = eff[id]; changed = 1 }
+                }
+            }
+        } while (changed)
+
         # Find ready tickets: open (or in progress with --all) with all deps closed
         for (id in statuses) {
             status = statuses[id]
@@ -1301,24 +1318,26 @@ cmd_ready() {
                 }
             }
             if (ready) {
-                output[++count] = sprintf("%s|%s|%s|%s", priorities[id], id, status, titles[id])
+                output[++count] = sprintf("%s|%s|%s|%s|%s", eff[id], priorities[id], id, status, titles[id])
             }
         }
 
-        # Sort by priority, then by id
+        # Sort by effective priority, then own priority, then id
         for (i = 1; i <= count; i++) {
             for (j = i + 1; j <= count; j++) {
                 split(output[i], a, "|")
                 split(output[j], b, "|")
-                if (a[1] > b[1] || (a[1] == b[1] && a[2] > b[2])) {
+                if (a[1]+0 > b[1]+0 || (a[1]+0 == b[1]+0 && (a[2]+0 > b[2]+0 || (a[2]+0 == b[2]+0 && a[3] > b[3])))) {
                     tmp = output[i]; output[i] = output[j]; output[j] = tmp
                 }
             }
         }
 
+        # Show [P2→P1] when a ticket inherits a more urgent priority from a dependent
         for (i = 1; i <= count; i++) {
             split(output[i], f, "|")
-            printf "%-8s [P%s][%s] - %s\n", f[2], f[1], f[3], f[4]
+            prio = (f[1]+0 < f[2]+0) ? f[2] "→P" f[1] : f[2]
+            printf "%-8s [P%s][%s] - %s\n", f[3], prio, f[4], f[5]
         }
     }
     ' "$TICKETS_DIR"/*.md 2>/dev/null
@@ -2095,6 +2114,8 @@ Commands:
   unlink <id> <target-id>  Remove link between tickets
   ls|list [--status=X] [-a X] [-T X]   List tickets
   ready [-a X] [-T X] [--all]  List open tickets with deps resolved (--all adds in-progress)
+                           Sorted by priority; a ticket takes the priority of any unclosed
+                           ticket waiting on it, shown as [P2→P1]
   next [-a X] [-T X]       Show the single highest-priority ready ticket
   blocked [-a X] [-T X]    List open/in-progress tickets with unresolved deps
   closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, newest first)
@@ -2127,7 +2148,8 @@ Planning a feature:
   - An epic (-t epic) and children (--parent <epic>), each with --acceptance
     criteria and a --slug for a readable ID
   - Order goes in dependencies, not prose: $cmd dep A B means A waits for B
-  - Make the epic depend on its children, or $cmd next may hand out the epic itself
+  - Make the epic depend on its children, so $cmd next hands out the children at the
+    epic's priority rather than the epic itself
   - Check: $cmd dep tree <epic>, then $cmd next returns real work and $cmd check is clean
 
 Change fields with set and the status commands rather than editing frontmatter.

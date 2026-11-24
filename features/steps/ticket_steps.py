@@ -597,6 +597,17 @@ def step_output_line_contains(context, line_num, text):
     assert text in line, f"Line {line_num} does not contain '{text}'\nLine: {line}"
 
 
+@then(r'the output line (?P<line_num>\d+) should match pattern "(?P<pattern>[^"]+)"')
+def step_output_line_matches(context, line_num, pattern):
+    """Assert specific line of output matches a regex."""
+    line_num = int(line_num)
+    lines = context.stdout.split('\n')
+    assert len(lines) >= line_num, \
+        f"Output has only {len(lines)} lines, expected at least {line_num}"
+    line = lines[line_num - 1]
+    assert re.search(pattern, line), f"Line {line_num} does not match '{pattern}'\nLine: {line}"
+
+
 @then(r'the output line count should be (?P<count>\d+)')
 def step_output_line_count(context, count):
     """Assert output has specific number of lines."""

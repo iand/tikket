@@ -157,6 +157,8 @@ Commands:
   unlink <id> <target-id>  Remove link between tickets
   ls|list [--status=X] [-a X] [-T X]   List tickets
   ready [-a X] [-T X] [--all]  List open tickets with deps resolved (--all adds in-progress)
+                           Sorted by priority; a ticket takes the priority of any unclosed
+                           ticket waiting on it, shown as [P2→P1]
   next [-a X] [-T X]       Show the single highest-priority ready ticket
   blocked [-a X] [-T X]    List open/in-progress tickets with unresolved deps
   closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, newest first)
@@ -189,7 +191,8 @@ Planning a feature:
   - An epic (-t epic) and children (--parent <epic>), each with --acceptance
     criteria and a --slug for a readable ID
   - Order goes in dependencies, not prose: tk dep A B means A waits for B
-  - Make the epic depend on its children, or tk next may hand out the epic itself
+  - Make the epic depend on its children, so tk next hands out the children at the
+    epic's priority rather than the epic itself
   - Check: tk dep tree <epic>, then tk next returns real work and tk check is clean
 
 Change fields with set and the status commands rather than editing frontmatter.

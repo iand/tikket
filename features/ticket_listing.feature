@@ -273,6 +273,38 @@ Feature: Ticket Listing
     Then the command should succeed
     And the output should contain "ready-001"
 
+  Scenario Outline: Tag filter matches one whole tag
+    Given a ticket exists with ID "tag-0001" and title "UI work"
+    And a ticket exists with ID "tag-0002" and title "UIX work"
+    And a ticket exists with ID "tag-0003" and title "Untagged"
+    And ticket "tag-0001" has field "tags" with value "[ui, backend]"
+    And ticket "tag-0002" has field "tags" with value "[uix]"
+    When I run "tikket ls <filter>"
+    Then the command should succeed
+    And the output should contain "tag-0001"
+    And the output should not contain "tag-0002"
+    And the output should not contain "tag-0003"
+
+    Examples:
+      | filter   |
+      | -T ui    |
+      | --tag=ui |
+
+  Scenario Outline: Listing filters without a value report an error
+    Given a ticket exists with ID "list-0001" and title "First"
+    When I run "tikket <command> <flag>"
+    Then the command should fail
+    And the output should contain "Error: <flag> needs a value"
+
+    Examples:
+      | command | flag |
+      | ls      | -T   |
+      | ls      | -a   |
+      | ready   | -T   |
+      | next    | -T   |
+      | blocked | -a   |
+      | closed  | -T   |
+
   Scenario: Next with nothing ready prints nothing
     Given a ticket exists with ID "ready-001" and title "Done"
     And ticket "ready-001" has status "closed"

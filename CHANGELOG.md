@@ -54,6 +54,8 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `dep`, `undep` and `unlink` match whole IDs, so an ID that is a substring of another (e.g.
   `nw-fix` and `nw-fix-login`) no longer causes false "already exists" results or corrupts arrays
 - `dep tree` prefers an exact ID match over longer IDs containing it
+- `ls`, `ready`, `next`, `blocked` and `closed` report "Error: -T needs a value" (or `-a`) when
+  the flag is last, rather than an unbound variable error; `tk help` describes both filters
 
 ### Removed
 - `edit` command

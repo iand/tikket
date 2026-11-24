@@ -162,6 +162,9 @@ Commands:
   next [-a X] [-T X]       Show the single highest-priority ready ticket
   blocked [-a X] [-T X]    List open/in-progress tickets with unresolved deps
   closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, newest first)
+    Filters for ls, ready, next, blocked and closed (exact match, one value each):
+    -a, --assignee=X       Assigned to X
+    -T, --tag=X            Has tag X
   show <id>                Display ticket
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any

@@ -155,16 +155,18 @@ Commands:
   undep <id> <dep-id>      Remove dependency
   link <id> <id> [id...]   Link tickets together (symmetric)
   unlink <id> <target-id>  Remove link between tickets
-  ls|list [--status=X] [-a X] [-T X]   List tickets
-  ready [-a X] [-T X] [--all]  List open tickets with deps resolved (--all adds in-progress)
+  ls|list [--status=X] [filters]  List tickets
+  ready [filters] [--all]  List open tickets with deps resolved (--all adds in-progress)
                            Sorted by priority; a ticket takes the priority of any unclosed
                            ticket waiting on it, shown as [P2→P1]
-  next [-a X] [-T X]       Show the single highest-priority ready ticket
-  blocked [-a X] [-T X]    List open/in-progress tickets with unresolved deps
-  closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, newest first)
+  next [filters]           Show the single highest-priority ready ticket
+  blocked [filters]        List open/in-progress tickets with unresolved deps
+  closed [--limit=N] [filters]  List recently closed tickets (default 20, newest first)
     Filters for ls, ready, next, blocked and closed (exact match, one value each):
     -a, --assignee=X       Assigned to X
     -T, --tag=X            Has tag X
+    -t, --type=X           Type is X
+    -p, --priority=N       Priority is N (ready and next use the inherited priority)
   show <id>                Display ticket
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any

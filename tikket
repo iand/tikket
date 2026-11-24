@@ -288,6 +288,12 @@ validate_priority() {
     return 1
 }
 
+# Validates the type and priority filters of a listing command; empty means unset.
+validate_list_filters() {
+    [[ -z "$1" ]] || validate_type "$1" || return 1
+    [[ -z "$2" ]] || validate_priority "$2" || return 1
+}
+
 validate_resolution() {
     local resolution="$1"
     [[ " $VALID_RESOLUTIONS " == *" $resolution "* ]] && return 0
@@ -1192,7 +1198,7 @@ cmd_dep() {
 }
 
 cmd_ls() {
-    local status_filter="" assignee_filter="" tag_filter=""
+    local status_filter="" assignee_filter="" tag_filter="" type_filter="" priority_filter=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --status=*) status_filter="${1#--status=}"; shift ;;
@@ -1200,22 +1206,30 @@ cmd_ls() {
             --assignee=*) assignee_filter="${1#--assignee=}"; shift ;;
             -T) need_value -T $#; tag_filter="$2"; shift 2 ;;
             --tag=*) tag_filter="${1#--tag=}"; shift ;;
+            -t) need_value -t $#; type_filter="$2"; shift 2 ;;
+            --type=*) type_filter="${1#--type=}"; shift ;;
+            -p) need_value -p $#; priority_filter="$2"; shift 2 ;;
+            --priority=*) priority_filter="${1#--priority=}"; shift ;;
             *) shift ;;
         esac
     done
+    validate_list_filters "$type_filter" "$priority_filter" || return 1
 
     has_tickets || return 0
 
-    awk -v status_filter="$status_filter" -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
+    awk -v status_filter="$status_filter" -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" \
+        -v type_filter="$type_filter" -v priority_filter="$priority_filter" '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
         if (prev_file) emit()
-        id=""; status=""; title=""; deps=""; assignee=""; tags=""; in_front=0
+        id=""; status=""; title=""; deps=""; assignee=""; tags=""; type=""; priority=""; in_front=0
         prev_file=FILENAME
     }
     /^---$/ { in_front = !in_front; next }
     in_front && /^id:/ { id = $2 }
     in_front && /^status:/ { status = $2 }
+    in_front && /^type:/ { type = $2 }
+    in_front && /^priority:/ { priority = $2 }
     in_front && /^assignee:/ { assignee = $2 }
     in_front && /^tags:/ { tags = $2; gsub(/[\[\] ]/, "", tags) }
     in_front && /^deps:/ {
@@ -1230,7 +1244,10 @@ cmd_ls() {
         return 0
     }
     function emit() {
-        if (id != "" && (status_filter == "" || status == status_filter) && (assignee_filter == "" || assignee == assignee_filter) && (tag_filter == "" || has_tag(tags, tag_filter))) {
+        if (type == "") type = "task"
+        if (priority == "") priority = 2
+        if (id != "" && (status_filter == "" || status == status_filter) && (assignee_filter == "" || assignee == assignee_filter) && (tag_filter == "" || has_tag(tags, tag_filter)) \
+            && (type_filter == "" || type == type_filter) && (priority_filter == "" || priority + 0 == priority_filter + 0)) {
             deps_display = (deps != "") ? "[" deps "]" : "[]"
             gsub(/,/, ", ", deps_display)
             dep_str = (deps_display != "[]") ? " <- " deps_display : ""
@@ -1241,30 +1258,37 @@ cmd_ls() {
 }
 
 cmd_ready() {
-    local assignee_filter="" tag_filter="" include_active=0
+    local assignee_filter="" tag_filter="" type_filter="" priority_filter="" include_active=0
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -a) need_value -a $#; assignee_filter="$2"; shift 2 ;;
             --assignee=*) assignee_filter="${1#--assignee=}"; shift ;;
             -T) need_value -T $#; tag_filter="$2"; shift 2 ;;
             --tag=*) tag_filter="${1#--tag=}"; shift ;;
+            -t) need_value -t $#; type_filter="$2"; shift 2 ;;
+            --type=*) type_filter="${1#--type=}"; shift ;;
+            -p) need_value -p $#; priority_filter="$2"; shift 2 ;;
+            --priority=*) priority_filter="${1#--priority=}"; shift ;;
             --all) include_active=1; shift ;;
             *) shift ;;
         esac
     done
+    validate_list_filters "$type_filter" "$priority_filter" || return 1
 
     has_tickets || return 0
 
-    awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" -v include_active="$include_active" '
+    awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" -v include_active="$include_active" \
+        -v type_filter="$type_filter" -v priority_filter="$priority_filter" '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
         if (prev_file) store()
-        id=""; status=""; title=""; deps=""; priority=""; assignee=""; tags=""; in_front=0
+        id=""; status=""; title=""; deps=""; priority=""; assignee=""; tags=""; type=""; in_front=0
         prev_file=FILENAME
     }
     /^---$/ { in_front = !in_front; next }
     in_front && /^id:/ { id = $2 }
     in_front && /^status:/ { status = $2 }
+    in_front && /^type:/ { type = $2 }
     in_front && /^priority:/ { priority = $2 }
     in_front && /^assignee:/ { assignee = $2 }
     in_front && /^tags:/ { tags = $2; gsub(/[\[\] ]/, "", tags) }
@@ -1284,6 +1308,7 @@ cmd_ready() {
             titles[id] = title
             deps_raw[id] = deps
             priorities[id] = (priority != "") ? priority : 2
+            types[id] = (type != "") ? type : "task"
             assignees[id] = assignee
             all_tags[id] = tags
         }
@@ -1313,6 +1338,9 @@ cmd_ready() {
             if (status != "open" && !(include_active && status == "in_progress")) continue
             if (assignee_filter != "" && assignees[id] != assignee_filter) continue
             if (tag_filter != "" && !has_tag(all_tags[id], tag_filter)) continue
+            if (type_filter != "" && types[id] != type_filter) continue
+            # Filter on effective priority, the value ready sorts by and shows
+            if (priority_filter != "" && eff[id] != priority_filter + 0) continue
 
             deps = deps_raw[id]
             ready = 1
@@ -1353,7 +1381,7 @@ cmd_ready() {
 }
 
 cmd_closed() {
-    local limit=20 assignee_filter="" tag_filter=""
+    local limit=20 assignee_filter="" tag_filter="" type_filter="" priority_filter=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --limit=*) limit="${1#--limit=}"; shift ;;
@@ -1361,23 +1389,31 @@ cmd_closed() {
             --assignee=*) assignee_filter="${1#--assignee=}"; shift ;;
             -T) need_value -T $#; tag_filter="$2"; shift 2 ;;
             --tag=*) tag_filter="${1#--tag=}"; shift ;;
+            -t) need_value -t $#; type_filter="$2"; shift 2 ;;
+            --type=*) type_filter="${1#--type=}"; shift ;;
+            -p) need_value -p $#; priority_filter="$2"; shift 2 ;;
+            --priority=*) priority_filter="${1#--priority=}"; shift ;;
             *) shift ;;
         esac
     done
 
     # Filter closed tickets, sort by closed timestamp (newest first), then limit.
     # Tickets closed before timestamps were recorded sort last, by created time.
+    validate_list_filters "$type_filter" "$priority_filter" || return 1
     has_tickets || return 0
-    awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
+    awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" \
+        -v type_filter="$type_filter" -v priority_filter="$priority_filter" '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
         if (prev_file) emit()
-        id=""; status=""; title=""; assignee=""; tags=""; closed=""; created=""; resolution=""; in_front=0
+        id=""; status=""; title=""; assignee=""; tags=""; closed=""; created=""; resolution=""; type=""; priority=""; in_front=0
         prev_file=FILENAME
     }
     /^---$/ { in_front = !in_front; next }
     in_front && /^id:/ { id = $2 }
     in_front && /^status:/ { status = $2 }
+    in_front && /^type:/ { type = $2 }
+    in_front && /^priority:/ { priority = $2 }
     in_front && /^assignee:/ { assignee = $2 }
     in_front && /^closed:/ { closed = $2 }
     in_front && /^created:/ { created = $2 }
@@ -1390,7 +1426,10 @@ cmd_closed() {
         return 0
     }
     function emit() {
-        if (id != "" && status == "closed" && (assignee_filter == "" || assignee == assignee_filter) && (tag_filter == "" || has_tag(tags, tag_filter))) {
+        if (type == "") type = "task"
+        if (priority == "") priority = 2
+        if (id != "" && status == "closed" && (assignee_filter == "" || assignee == assignee_filter) && (tag_filter == "" || has_tag(tags, tag_filter)) \
+            && (type_filter == "" || type == type_filter) && (priority_filter == "" || priority + 0 == priority_filter + 0)) {
             label = (resolution != "") ? resolution : status
             printf "%s\t%s\t%-8s [%s] - %s\n", closed, created, id, label, title
         }
@@ -1508,29 +1547,37 @@ cmd_check() {
 }
 
 cmd_blocked() {
-    local assignee_filter="" tag_filter=""
+    local assignee_filter="" tag_filter="" type_filter="" priority_filter=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -a) need_value -a $#; assignee_filter="$2"; shift 2 ;;
             --assignee=*) assignee_filter="${1#--assignee=}"; shift ;;
             -T) need_value -T $#; tag_filter="$2"; shift 2 ;;
             --tag=*) tag_filter="${1#--tag=}"; shift ;;
+            -t) need_value -t $#; type_filter="$2"; shift 2 ;;
+            --type=*) type_filter="${1#--type=}"; shift ;;
+            -p) need_value -p $#; priority_filter="$2"; shift 2 ;;
+            --priority=*) priority_filter="${1#--priority=}"; shift ;;
             *) shift ;;
         esac
     done
 
+    validate_list_filters "$type_filter" "$priority_filter" || return 1
+
     has_tickets || return 0
 
-    awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
+    awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" \
+        -v type_filter="$type_filter" -v priority_filter="$priority_filter" '
     BEGIN { FS=": "; in_front=0 }
     FNR==1 {
         if (prev_file) store()
-        id=""; status=""; title=""; deps=""; priority=""; assignee=""; tags=""; in_front=0
+        id=""; status=""; title=""; deps=""; priority=""; assignee=""; tags=""; type=""; in_front=0
         prev_file=FILENAME
     }
     /^---$/ { in_front = !in_front; next }
     in_front && /^id:/ { id = $2 }
     in_front && /^status:/ { status = $2 }
+    in_front && /^type:/ { type = $2 }
     in_front && /^priority:/ { priority = $2 }
     in_front && /^assignee:/ { assignee = $2 }
     in_front && /^tags:/ { tags = $2; gsub(/[\[\] ]/, "", tags) }
@@ -1550,6 +1597,7 @@ cmd_blocked() {
             titles[id] = title
             deps_raw[id] = deps
             priorities[id] = (priority != "") ? priority : 2
+            types[id] = (type != "") ? type : "task"
             assignees[id] = assignee
             all_tags[id] = tags
         }
@@ -1562,6 +1610,8 @@ cmd_blocked() {
             if (status != "open" && status != "in_progress") continue
             if (assignee_filter != "" && assignees[id] != assignee_filter) continue
             if (tag_filter != "" && !has_tag(all_tags[id], tag_filter)) continue
+            if (type_filter != "" && types[id] != type_filter) continue
+            if (priority_filter != "" && priorities[id] + 0 != priority_filter + 0) continue
 
             deps = deps_raw[id]
             if (deps == "") continue
@@ -2121,17 +2171,19 @@ Commands:
   undep <id> <dep-id>      Remove dependency
   link <id> <id> [id...]   Link tickets together (symmetric)
   unlink <id> <target-id>  Remove link between tickets
-  ls|list [--status=X] [-a X] [-T X]   List tickets
-  ready [-a X] [-T X] [--all]  List open tickets with deps resolved (--all adds in-progress)
+  ls|list [--status=X] [filters]  List tickets
+  ready [filters] [--all]  List open tickets with deps resolved (--all adds in-progress)
                            Sorted by priority; a ticket takes the priority of any unclosed
                            ticket waiting on it, shown as [P2→P1]
-  next [-a X] [-T X]       Show the single highest-priority ready ticket
-  blocked [-a X] [-T X]    List open/in-progress tickets with unresolved deps
-  closed [--limit=N] [-a X] [-T X] List recently closed tickets (default 20, newest first)
+  next [filters]           Show the single highest-priority ready ticket
+  blocked [filters]        List open/in-progress tickets with unresolved deps
+  closed [--limit=N] [filters]  List recently closed tickets (default 20, newest first)
     Filters for ls, ready, next, blocked and closed (exact match, one value each):
     -a, --assignee=X       Assigned to X
     -T, --tag=X            Has tag X
-  show <id>              Display ticket
+    -t, --type=X           Type is X
+    -p, --priority=N       Priority is N (ready and next use the inherited priority)
+  show <id>                Display ticket
   add-note <id> [-a X] [text]  Append timestamped note (or pipe via stdin)
   check                    Report broken references and invalid fields; exits 1 if any
   browse [--status=X] [--print]  Browse tickets grouped by parent in fzf, with a preview

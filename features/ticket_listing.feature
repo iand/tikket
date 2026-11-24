@@ -290,6 +290,79 @@ Feature: Ticket Listing
       | -T ui    |
       | --tag=ui |
 
+  Scenario Outline: Type filter lists only tickets of that type
+    Given a ticket exists with ID "type-0001" and title "A task"
+    And a ticket exists with ID "type-0002" and title "A bug"
+    And ticket "type-0002" has field "type" with value "bug"
+    When I run "tikket <command> <filter>"
+    Then the command should succeed
+    And the output should contain "type-0002"
+    And the output should not contain "type-0001"
+
+    Examples:
+      | command | filter     |
+      | ls      | -t bug     |
+      | ls      | --type=bug |
+      | ready   | -t bug     |
+      | next    | -t bug     |
+
+  Scenario Outline: Priority filter matches one priority exactly
+    Given a ticket exists with ID "prio-0000" and title "Urgent" with priority 0
+    And a ticket exists with ID "prio-0001" and title "High" with priority 1
+    And a ticket exists with ID "prio-0002" and title "Normal" with priority 2
+    When I run "tikket ls <filter>"
+    Then the command should succeed
+    And the output should contain "prio-0001"
+    And the output should not contain "prio-0000"
+    And the output should not contain "prio-0002"
+
+    Examples:
+      | filter       |
+      | -p 1         |
+      | --priority=1 |
+
+  Scenario: Ready filters on inherited priority
+    Given a ticket exists with ID "ready-001" and title "Epic" with priority 1
+    And a ticket exists with ID "ready-002" and title "Leaf" with priority 3
+    And a ticket exists with ID "ready-003" and title "Unrelated" with priority 3
+    And ticket "ready-001" depends on "ready-002"
+    When I run "tikket ready -p 1"
+    Then the command should succeed
+    And the output should contain "ready-002"
+    And the output should not contain "ready-003"
+
+  Scenario: Blocked and closed filter on the ticket's own priority
+    Given a ticket exists with ID "block-001" and title "Blocked P1" with priority 1
+    And a ticket exists with ID "block-002" and title "Blocked P3" with priority 3
+    And a ticket exists with ID "block-003" and title "Blocker" with priority 2
+    And a ticket exists with ID "done-0001" and title "Done P1" with priority 1
+    And a ticket exists with ID "done-0002" and title "Done P3" with priority 3
+    And ticket "block-001" depends on "block-003"
+    And ticket "block-002" depends on "block-003"
+    And ticket "done-0001" has status "closed"
+    And ticket "done-0002" has status "closed"
+    When I run "tikket blocked -p 3"
+    Then the command should succeed
+    And the output should contain "block-002"
+    And the output should not contain "block-001"
+    When I run "tikket closed -p 1"
+    Then the command should succeed
+    And the output should contain "done-0001"
+    And the output should not contain "done-0002"
+
+  Scenario Outline: Listing filters reject invalid types and priorities
+    Given a ticket exists with ID "list-0001" and title "First"
+    When I run "tikket <command> <filter>"
+    Then the command should fail
+    And the output should contain "<error>"
+
+    Examples:
+      | command | filter       | error                        |
+      | ls      | -t story     | Error: invalid type 'story'  |
+      | next    | --type=story | Error: invalid type 'story'  |
+      | ready   | -p 5         | Error: invalid priority '5'  |
+      | closed  | --priority=x | Error: invalid priority 'x'  |
+
   Scenario Outline: Listing filters without a value report an error
     Given a ticket exists with ID "list-0001" and title "First"
     When I run "tikket <command> <flag>"
@@ -304,6 +377,10 @@ Feature: Ticket Listing
       | next    | -T   |
       | blocked | -a   |
       | closed  | -T   |
+      | ls      | -t   |
+      | ready   | -p   |
+      | blocked | -t   |
+      | closed  | -p   |
 
   Scenario: Next with nothing ready prints nothing
     Given a ticket exists with ID "ready-001" and title "Done"

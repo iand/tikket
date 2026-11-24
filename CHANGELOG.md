@@ -27,6 +27,8 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `set <id> <field> <value>` for title, type, priority, assignee, parent and tags
 - `next` command: the single highest-priority ready ticket
 - `claim` command: sets in_progress and assignee under a lock; fails if another assignee has it
+- `-t/--type` and `-p/--priority` filters for `ls`, `ready`, `next`, `blocked` and `closed`;
+  `ready` and `next` match the inherited priority they sort by
 - `close -m/--message` adds a note, `close -r/--resolution done|wontfix|duplicate` records the outcome
 - `closed:` timestamp and `resolution:` field written on close and removed on reopen/start
 - `add-note -a/--author`; notes record their author

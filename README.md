@@ -139,7 +139,8 @@ Commands:
     -a, --assignee         Assignee [default: $TK_ASSIGNEE or git user.name]
     --parent               Parent ticket ID
     --tags                 Comma-separated tags (e.g., --tags ui,backend,urgent)
-    -s, --slug             Use slug instead of random suffix in ID (e.g., --slug fix-login)
+    -s, --slug             Use slug instead of random suffix in ID; the prefix is added
+                           automatically (e.g., --slug fix-login)
   set <id> <field> <value> Set title|type|priority|assignee|parent|tags (empty clears)
   start <id>               Set status to in_progress
   claim <id> [-a X]        Start a ticket and assign it; fails if someone else has it
@@ -153,7 +154,7 @@ Commands:
   dep tree [--full] <id>   Show dependency tree (--full disables dedup)
   dep cycle                Find dependency cycles in open tickets
   undep <id> <dep-id>      Remove dependency
-  link <id> <id> [id...]   Link tickets together (symmetric)
+  link <id> <id> [id...]   Link every listed ticket to every other (symmetric)
   unlink <id> <target-id>  Remove link between tickets
   ls|list [--status=X] [filters]  List tickets
   ready [filters] [--all]  List open tickets with deps resolved (--all adds in-progress)

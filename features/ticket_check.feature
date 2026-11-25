@@ -10,7 +10,6 @@ Feature: Ticket Check
     Given a ticket exists with ID "chk-0001" and title "First"
     And a ticket exists with ID "chk-0002" and title "Second" with parent "chk-0001"
     And ticket "chk-0002" depends on "chk-0001"
-    And ticket "chk-0001" is linked to "chk-0002"
     When I run "tikket check"
     Then the command should succeed
     And the output should be "No problems found"
@@ -28,21 +27,18 @@ Feature: Ticket Check
     And the output should contain "chk-0001: dependency ghost-01 does not exist"
     And the output should contain "1 problem(s) found"
 
-  Scenario: Missing parent and link are reported
+  Scenario: Missing parent is reported
     Given a ticket exists with ID "chk-0001" and title "First" with parent "ghost-01"
-    And ticket "chk-0001" has field "links" with value "[ghost-02]"
     When I run "tikket check"
     Then the command should fail
     And the output should contain "chk-0001: parent ghost-01 does not exist"
-    And the output should contain "chk-0001: link ghost-02 does not exist"
 
-  Scenario: One-sided link is reported
+  Scenario: Leftover links field from older tickets is ignored
     Given a ticket exists with ID "chk-0001" and title "First"
-    And a ticket exists with ID "chk-0002" and title "Second"
-    And ticket "chk-0001" has field "links" with value "[chk-0002]"
+    And ticket "chk-0001" has field "links" with value "[ghost-02]"
     When I run "tikket check"
-    Then the command should fail
-    And the output should contain "chk-0001: link to chk-0002 is not reciprocated"
+    Then the command should succeed
+    And the output should be "No problems found"
 
   Scenario: Self references are reported
     Given a ticket exists with ID "chk-0001" and title "First" with parent "chk-0001"
@@ -84,7 +80,6 @@ Feature: Ticket Check
       id: other-01
       status: open
       deps: []
-      links: []
       ---
       # Mismatched
       """

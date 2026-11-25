@@ -62,10 +62,3 @@ Feature: Ticket ID Resolution
     When I run "tikket dep aaaa bbbb"
     Then the command should succeed
     And ticket "dep-aaaa" should have "dep-bbbb" in deps
-
-  Scenario: ID resolution works with link command
-    Given a ticket exists with ID "link-cccc" and title "First"
-    And a ticket exists with ID "link-dddd" and title "Second"
-    When I run "tikket link cccc dddd"
-    Then the command should succeed
-    And ticket "link-cccc" should have "link-dddd" in links

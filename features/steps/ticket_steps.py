@@ -35,7 +35,6 @@ def create_ticket(context, ticket_id, title, priority=2, parent=None):
 id: {ticket_id}
 status: open
 deps: []
-links: []
 created: 2024-01-01T00:00:00Z
 type: task
 priority: {priority}
@@ -128,42 +127,6 @@ def step_ticket_depends_on(context, ticket_id, dep_id):
     ticket_path.write_text(content)
 
 
-@given(r'ticket "(?P<ticket_id>[^"]+)" is linked to "(?P<link_id>[^"]+)"')
-def step_ticket_linked_to(context, ticket_id, link_id):
-    """Create bidirectional link between tickets."""
-    # Update first ticket
-    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
-    content = ticket_path.read_text()
-    links_match = re.search(r'^links: \[(.*?)\]', content, re.MULTILINE)
-    if links_match:
-        current_links = links_match.group(1)
-        if current_links:
-            links_list = [l.strip() for l in current_links.split(',')]
-            if link_id not in links_list:
-                links_list.append(link_id)
-        else:
-            links_list = [link_id]
-        new_links = ', '.join(links_list)
-        content = re.sub(r'^links: \[.*?\]', f'links: [{new_links}]', content, flags=re.MULTILINE)
-    ticket_path.write_text(content)
-
-    # Update second ticket
-    link_path = Path(context.test_dir) / '.tickets' / f'{link_id}.md'
-    content = link_path.read_text()
-    links_match = re.search(r'^links: \[(.*?)\]', content, re.MULTILINE)
-    if links_match:
-        current_links = links_match.group(1)
-        if current_links:
-            links_list = [l.strip() for l in current_links.split(',')]
-            if ticket_id not in links_list:
-                links_list.append(ticket_id)
-        else:
-            links_list = [ticket_id]
-        new_links = ', '.join(links_list)
-        content = re.sub(r'^links: \[.*?\]', f'links: [{new_links}]', content, flags=re.MULTILINE)
-    link_path.write_text(content)
-
-
 @given(r'ticket "(?P<ticket_id>[^"]+)" has a notes section')
 def step_ticket_has_notes(context, ticket_id):
     """Ensure ticket has a notes section."""
@@ -216,7 +179,6 @@ def step_separate_tickets_dir(context, dir_path, ticket_id, title):
 id: {ticket_id}
 status: open
 deps: []
-links: []
 created: 2024-01-01T00:00:00Z
 type: task
 priority: 2
@@ -541,30 +503,6 @@ def step_ticket_not_has_dep(context, ticket_id, dep_id):
     assert deps_match, f"deps field not found\nContent: {content}"
     deps = deps_match.group(1)
     assert dep_id not in [d.strip() for d in deps.split(',')], f"Dependency '{dep_id}' should not be in deps: [{deps}]"
-
-
-@then(r'ticket "(?P<ticket_id>[^"]+)" should have "(?P<link_id>[^"]+)" in links')
-def step_ticket_has_link(context, ticket_id, link_id):
-    """Assert ticket has a link."""
-    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
-    content = ticket_path.read_text()
-
-    links_match = re.search(r'^links:\s*\[([^\]]*)\]', content, re.MULTILINE)
-    assert links_match, f"links field not found\nContent: {content}"
-    links = links_match.group(1)
-    assert link_id in [l.strip() for l in links.split(',')], f"Link '{link_id}' not in links: [{links}]"
-
-
-@then(r'ticket "(?P<ticket_id>[^"]+)" should not have "(?P<link_id>[^"]+)" in links')
-def step_ticket_not_has_link(context, ticket_id, link_id):
-    """Assert ticket does not have a link."""
-    ticket_path = Path(context.test_dir) / '.tickets' / f'{ticket_id}.md'
-    content = ticket_path.read_text()
-
-    links_match = re.search(r'^links:\s*\[([^\]]*)\]', content, re.MULTILINE)
-    assert links_match, f"links field not found\nContent: {content}"
-    links = links_match.group(1)
-    assert link_id not in [l.strip() for l in links.split(',')], f"Link '{link_id}' should not be in links: [{links}]"
 
 
 @then(r'ticket "(?P<ticket_id>[^"]+)" should contain "(?P<text>[^"]+)"')

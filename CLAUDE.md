@@ -25,7 +25,7 @@ Key functions:
 - `acquire_lock()` / `release_lock()` - `mkdir` lock used by `claim`
 - `current_user()` - `TK_ASSIGNEE`, else git user.name
 - `array_contains()` / `array_remove()` - Exact-element operations on inline YAML arrays
-  (`deps`, `links`). Use these rather than grep/sed so `nw-fix` never matches `nw-fix-login`
+  (`deps`). Use these rather than grep/sed so `nw-fix` never matches `nw-fix-login`
 - `has_tickets()` - Guard for awk passes over `"$TICKETS_DIR"/*.md`; an unmatched glob reaches
   awk literally and fails, so call this first in any new bulk command
 - `cmd_*()` - Command handlers

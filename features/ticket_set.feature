@@ -106,7 +106,6 @@ Feature: Ticket Set
       | field      |
       | status     |
       | deps       |
-      | links      |
       | id         |
       | created    |
       | closed     |

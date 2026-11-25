@@ -108,7 +108,7 @@ Claude Opus picks it up naturally from there. Other models may need additional g
 ### Working loop for agents
 
 `tk help` includes the working conventions as well as the commands: resume your own work first,
-claim before starting, leave notes, close with the outcome, file follow-up work as linked tickets,
+claim before starting, leave notes, close with the outcome, file follow-up work as new tickets,
 and how to lay out an epic. Agents run it before using tk, so it is the place to change if you
 want them to work differently.
 
@@ -154,8 +154,6 @@ Commands:
   dep tree [--full] <id>   Show dependency tree (--full disables dedup)
   dep cycle                Find dependency cycles in open tickets
   undep <id> <dep-id>      Remove dependency
-  link <id> <id> [id...]   Link every listed ticket to every other (symmetric)
-  unlink <id> <target-id>  Remove link between tickets
   ls|list [--status=X] [filters]  List tickets
   ready [filters] [--all]  List open tickets with deps resolved (--all adds in-progress)
                            Sorted by priority; a ticket takes the priority of any unclosed
@@ -190,8 +188,9 @@ Working through tickets:
      --force only if the user asks for it.
 
 Work noticed along the way: file it and carry on, rather than fixing it in passing
-  new=$(tk create "..." -t bug -d "Found while working on <id>: ...")
-  tk link <id> "$new"
+  tk create "..." -t bug -d "Found while working on <id>: ..."
+  Name the new ticket in <id>'s close message. If <id> can't be finished without
+  it, tk dep <id> <new-id>.
 
 Planning a feature:
   - An epic (-t epic) and children (--parent <epic>), each with --acceptance

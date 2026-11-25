@@ -574,7 +574,6 @@ cmd_create() {
         echo "id: $id"
         echo "status: open"
         echo "deps: []"
-        echo "links: []"
         echo "created: $now"
         echo "type: $issue_type"
         echo "priority: $priority"
@@ -749,8 +748,8 @@ cmd_set() {
                 update_yaml_field "$file" "tags" "[${value//,/, }]"
             fi
             ;;
-        status|deps|links|id|created|closed|resolution)
-            echo "Error: '$field' cannot be set directly; use the status, close, dep or link commands" >&2
+        status|deps|id|created|closed|resolution)
+            echo "Error: '$field' cannot be set directly; use the status, close or dep commands" >&2
             return 1
             ;;
         *)
@@ -1461,7 +1460,7 @@ cmd_check() {
     }
     FNR==1 {
         if (prev_file) finish()
-        fm=0; id=""; status=""; type=""; priority=""; deps=""; links=""; parent=""; resolution=""; closed=""
+        fm=0; id=""; status=""; type=""; priority=""; deps=""; parent=""; resolution=""; closed=""
         name = FILENAME; sub(/.*\//, "", name); sub(/\.md$/, "", name)
         names[++nfiles] = name
         exists[name] = 1
@@ -1474,7 +1473,6 @@ cmd_check() {
     fm == 1 && /^type:/ { type = $2 }
     fm == 1 && /^priority:/ { priority = $2 }
     fm == 1 && /^deps:/ { deps = $2; gsub(/[\[\] ]/, "", deps) }
-    fm == 1 && /^links:/ { links = $2; gsub(/[\[\] ]/, "", links) }
     fm == 1 && /^parent:/ { parent = $2 }
     fm == 1 && /^resolution:/ { resolution = $2 }
     fm == 1 && /^closed:/ { closed = $2 }
@@ -1495,13 +1493,7 @@ cmd_check() {
         if (status != "closed" && closed != "") report(name, "closed timestamp set on ticket that is not closed")
 
         all_deps[name] = deps
-        all_links[name] = links
         parents[name] = parent
-    }
-    function has(list, item,    i, n, arr) {
-        n = split(list, arr, ",")
-        for (i = 1; i <= n; i++) if (arr[i] == item) return 1
-        return 0
     }
     END {
         if (prev_file) finish()
@@ -1515,15 +1507,6 @@ cmd_check() {
                 if (d == "") continue
                 if (d == name) report(name, "depends on itself")
                 else if (!(d in exists)) report(name, "dependency " d " does not exist")
-            }
-
-            n = split(all_links[name], arr, ",")
-            for (i = 1; i <= n; i++) {
-                l = arr[i]
-                if (l == "") continue
-                if (l == name) report(name, "links to itself")
-                else if (!(l in exists)) report(name, "link " l " does not exist")
-                else if (!has(all_links[l], name)) report(name, "link to " l " is not reciprocated")
             }
 
             p = parents[name]
@@ -1689,121 +1672,6 @@ cmd_undep() {
     echo "Removed dependency: $(basename "$file" .md) -/-> $dep_id"
 }
 
-cmd_link() {
-    if [[ $# -lt 2 ]]; then
-        echo "Usage: $(basename "$0") link <id> <id> [id...]" >&2
-        return 1
-    fi
-
-    # Resolve all ticket paths first
-    local -a ids=() files=()
-    for arg in "$@"; do
-        local file
-        file=$(ticket_path "$arg") || return 1
-        ids+=("$(basename "$file" .md)")
-        files+=("$file")
-    done
-
-    # Use awk to update all files in one pass per file
-    local id_list
-    id_list=$(printf '%s\n' "${ids[@]}")
-
-    local count=0
-    for ((i=0; i<${#ids[@]}; i++)); do
-        local file="${files[$i]}"
-        local self="${ids[$i]}"
-
-        # Build list of other IDs to link
-        local others=""
-        for ((j=0; j<${#ids[@]}; j++)); do
-            [[ $i -ne $j ]] && others="$others ${ids[$j]}"
-        done
-
-        # Update file with awk - add missing links
-        local result
-        result=$(awk -v self="$self" -v others="$others" '
-        BEGIN {
-            n = split(others, other_arr, " ")
-            for (i = 1; i <= n; i++) need[other_arr[i]] = 1
-        }
-        /^links:/ {
-            # Parse existing links
-            gsub(/[\[\]]/, "", $0)
-            sub(/^links: */, "", $0)
-            m = split($0, existing, ", *")
-            for (i = 1; i <= m; i++) {
-                if (existing[i] != "") {
-                    have[existing[i]] = 1
-                    delete need[existing[i]]
-                }
-            }
-
-            # Build new links array
-            out = ""
-            for (i = 1; i <= m; i++) {
-                if (existing[i] != "") {
-                    out = (out == "") ? existing[i] : out ", " existing[i]
-                }
-            }
-            for (id in need) {
-                out = (out == "") ? id : out ", " id
-                added++
-            }
-            print "links: [" out "]"
-            found = 1
-            next
-        }
-        { print }
-        END { printf "%d", added > "/dev/stderr" }
-        ' "$file" 2>&1 >"${file}.tmp")
-
-        mv "${file}.tmp" "$file"
-        ((count += result)) || true
-    done
-
-    if [[ $count -eq 0 ]]; then
-        echo "All links already exist"
-    else
-        echo "Added $count link(s) between ${#ids[@]} tickets"
-    fi
-}
-
-cmd_unlink() {
-    if [[ $# -lt 2 ]]; then
-        echo "Usage: $(basename "$0") unlink <id> <target-id>" >&2
-        return 1
-    fi
-
-    # Resolve both IDs to full IDs
-    local file target_file
-    file=$(ticket_path "$1") || return 1
-    target_file=$(ticket_path "$2") || return 1
-    local id target_id
-    id=$(basename "$file" .md)
-    target_id=$(basename "$target_file" .md)
-
-    local current_links
-    current_links=$(yaml_field "$file" "links" || true)
-
-    if [[ -z "$current_links" ]] || ! array_contains "$current_links" "$target_id"; then
-        echo "Link not found"
-        return 1
-    fi
-
-    # Remove from both files
-    for pair in "$file:$target_id" "$target_file:$id"; do
-        local f="${pair%%:*}" tid="${pair#*:}"
-        local links
-        links=$(yaml_field "$f" "links" || true)
-        [[ -z "$links" ]] || ! array_contains "$links" "$tid" && continue
-        local new_links
-        new_links=$(array_remove "$links" "$tid")
-        update_yaml_field "$f" "links" "$new_links"
-    done
-
-    echo "Removed link: $id <-> $target_id"
-}
-
 cmd_show() {
     if [[ $# -lt 1 ]]; then
         echo "Usage: $(basename "$0") show <id>" >&2
@@ -1821,14 +1689,13 @@ cmd_show() {
     # First pass: collect all ticket metadata
     FNR==1 {
         if (prev_file) store()
-        id=""; status=""; title=""; deps=""; links=""; parent=""; in_front=0
+        id=""; status=""; title=""; deps=""; parent=""; in_front=0
         prev_file=FILENAME
     }
     /^---$/ { in_front = !in_front; next }
     in_front && /^id:/ { id = $2 }
     in_front && /^status:/ { status = $2 }
     in_front && /^deps:/ { deps = $2; gsub(/[\[\] ]/, "", deps) }
-    in_front && /^links:/ { links = $2; gsub(/[\[\] ]/, "", links) }
     in_front && /^parent:/ { parent = $2 }
     !in_front && /^# / && title == "" { title = substr($0, 3) }
 
@@ -1837,7 +1704,6 @@ cmd_show() {
             statuses[id] = status
             titles[id] = title
             all_deps[id] = deps
-            all_links[id] = links
             parents[id] = parent
         }
     }
@@ -1928,21 +1794,6 @@ cmd_show() {
             for (i = 1; i <= children_count; i++) {
                 c = children[i]
                 printf "- %s [%s] %s\n", c, statuses[c], titles[c]
-            }
-        }
-
-        # Collect linked tickets
-        links = all_links[target]
-        if (links != "") {
-            n = split(links, arr, ",")
-            print ""
-            print "## Linked"
-            print ""
-            for (i = 1; i <= n; i++) {
-                l = arr[i]
-                if (l != "") {
-                    printf "- %s [%s] %s\n", l, statuses[l], titles[l]
-                }
             }
         }
     }
@@ -2170,8 +2021,6 @@ Commands:
   dep tree [--full] <id>   Show dependency tree (--full disables dedup)
   dep cycle                Find dependency cycles in open tickets
   undep <id> <dep-id>      Remove dependency
-  link <id> <id> [id...]   Link every listed ticket to every other (symmetric)
-  unlink <id> <target-id>  Remove link between tickets
   ls|list [--status=X] [filters]  List tickets
   ready [filters] [--all]  List open tickets with deps resolved (--all adds in-progress)
                            Sorted by priority; a ticket takes the priority of any unclosed
@@ -2206,8 +2055,9 @@ Working through tickets:
      --force only if the user asks for it.
 
 Work noticed along the way: file it and carry on, rather than fixing it in passing
-  new=\$($cmd create "..." -t bug -d "Found while working on <id>: ...")
-  $cmd link <id> "\$new"
+  $cmd create "..." -t bug -d "Found while working on <id>: ..."
+  Name the new ticket in <id>'s close message. If <id> can't be finished without
+  it, $cmd dep <id> <new-id>.
 
 Planning a feature:
   - An epic (-t epic) and children (--parent <epic>), each with --acceptance
@@ -2245,8 +2095,6 @@ case "${1:-help}" in
     status) shift; cmd_status "$@" ;;
     dep)    shift; cmd_dep "$@" ;;
     undep)  shift; cmd_undep "$@" ;;
-    link)   shift; cmd_link "$@" ;;
-    unlink) shift; cmd_unlink "$@" ;;
     ls|list) shift; cmd_ls "$@" ;;
     ready) shift; cmd_ready "$@" ;;
     next)   shift; cmd_next "$@" ;;

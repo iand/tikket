@@ -19,7 +19,6 @@ Feature: Ticket Show
     Then the command should succeed
     And the output should contain "status: open"
     And the output should contain "deps: []"
-    And the output should contain "links: []"
     And the output should contain "type: task"
     And the output should contain "priority: 2"
 
@@ -57,15 +56,6 @@ Feature: Ticket Show
     Then the command should succeed
     And the output should contain "## Children"
     And the output should contain "show-002 [open] Child"
-
-  Scenario: Show displays linked section
-    Given a ticket exists with ID "show-001" and title "First"
-    And a ticket exists with ID "show-002" and title "Second"
-    And ticket "show-001" is linked to "show-002"
-    When I run "tikket show show-001"
-    Then the command should succeed
-    And the output should contain "## Linked"
-    And the output should contain "show-002 [open] Second"
 
   Scenario: Show enhances parent field with title
     Given a ticket exists with ID "show-001" and title "Parent ticket"

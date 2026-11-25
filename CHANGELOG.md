@@ -22,7 +22,7 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
   changes it, so clones and worktrees with different directory names generate the same IDs
 - `-s, --slug` flag for `create` to use a meaningful ID suffix instead of a random one
 - `create` refuses to overwrite an existing ticket ID
-- `check` command: reports missing or self references, one-sided links, parent cycles, invalid
+- `check` command: reports missing or self references, parent cycles, invalid
   status/type/priority/resolution, id/filename mismatches and malformed frontmatter; exits 1 if any
 - `set <id> <field> <value>` for title, type, priority, assignee, parent and tags
 - `next` command: the single highest-priority ready ticket
@@ -53,7 +53,7 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 ### Fixed
 - `ls`, `ready`, `next`, `blocked`, `closed` and `dep cycle` no longer exit with status 2 on an
   empty tickets directory
-- `dep`, `undep` and `unlink` match whole IDs, so an ID that is a substring of another (e.g.
+- `dep` and `undep` match whole IDs, so an ID that is a substring of another (e.g.
   `nw-fix` and `nw-fix-login`) no longer causes false "already exists" results or corrupts arrays
 - `dep tree` prefers an exact ID match over longer IDs containing it
 - `ls`, `ready`, `next`, `blocked` and `closed` report "Error: -T needs a value" (or `-a`) when
@@ -63,6 +63,10 @@ Fork of wedow/ticket trimmed to ticket management only. Changes are relative to 
 - `edit` command
 - `query` command (and the `jq` dependency)
 - `migrate-beads` command
+- `link` and `unlink` commands, the `links:` field and the `## Linked` section in `show`. A
+  follow-up names its origin in its description, and the original ticket's close message names
+  the follow-up; use `dep` when the follow-up blocks the original. `links:` lines in existing
+  tickets are ignored and can be deleted by hand
 - `--external-ref` flag for `create`
 - `TICKET_PAGER` / `PAGER` support for `show`
 - `closed` no longer lists tickets with the non-standard status `done`

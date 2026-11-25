@@ -153,11 +153,6 @@ Feature: Ticket Creation
     Then the command should succeed
     And the created ticket should have field "deps" with value "[]"
 
-  Scenario: Ticket has empty links by default
-    When I run "tikket create 'No links'"
-    Then the command should succeed
-    And the created ticket should have field "links" with value "[]"
-
   Scenario: Ticket has created timestamp
     When I run "tikket create 'Timestamped'"
     Then the command should succeed
